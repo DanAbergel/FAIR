@@ -1,0 +1,12 @@
+# data & outputs
+/data/
+/outputs/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# notebooks
+.ipynb_checkpoints/
