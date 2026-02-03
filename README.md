@@ -2,7 +2,7 @@
 
 **Thèse de Master en Data Science**
 Hebrew University of Jerusalem (HUJI)
-Auteur: Dana Bergel
+Auteur: Dan Abergel
 Superviseur: Ariel Yaffe
 
 ---

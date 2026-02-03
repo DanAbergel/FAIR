@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRefactor baseline: add CV, caching, detailed comments\n\n- Switch from train/test split to 5-fold stratified CV\n- Auto-download Schaefer atlas via nilearn\n- Add caching of extracted time series \\(.npy\\)\n- Use sklearn Pipeline to prevent data leakage\n- Add extensive French comments for learning purposes\n- Update README with full documentation and glossary\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(tree:*)",
+      "Bash(chmod:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd step1: HCP data exploration script\n\n- Simple script to explore fMRI signal from individual subjects\n- Loads schaefer200.npy files per subject\n- Creates 4 diagnostic plots: temporal signal, heatmap, distribution, ROI variance\n- Saves output as PNG for cluster use\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

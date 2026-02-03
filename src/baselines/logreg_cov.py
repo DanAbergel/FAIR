@@ -29,7 +29,14 @@ POURQUOI UNE BASELINE?
 - Si un modèle complexe ne bat pas la baseline, il n'est pas utile
 - La régression logistique est simple, rapide, et interprétable
 
-Auteur: Dana Bergel
+RÉSULTATS (HCP 1200, Schaefer 200, 5-fold CV)
+=============================================
+ROC-AUC per fold: [0.825, 0.832, 0.817, 0.857, 0.841]
+Mean ROC-AUC: 0.834 ± 0.014
+
+→ C'est la référence à battre pour les modèles plus complexes.
+
+Auteur: Dan Abergel
 Thèse de Master - Hebrew University of Jerusalem
 Superviseur: Ariel Yaffe
 """
