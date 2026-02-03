@@ -301,6 +301,90 @@ def print_population_summary(stats: dict, problematic: dict):
 
 
 # =============================================================================
+# SAUVEGARDE DES LISTES DE SUJETS
+# =============================================================================
+def save_subject_lists(stats: dict, problematic: dict, output_dir: Path):
+    """
+    Sauvegarde les listes de sujets (à exclure et à garder).
+
+    Fichiers créés:
+    - subjects_excluded.json : sujets problématiques avec raison
+    - subjects_clean.json : sujets à utiliser pour l'analyse
+    - population_stats.json : statistiques complètes
+    """
+
+    # Collecter tous les indices problématiques
+    excluded_indices = set()
+    excluded_reasons = {}
+
+    for criterion, indices in problematic.items():
+        for idx in indices:
+            subject_id = stats["subject_ids"][idx]
+            excluded_indices.add(idx)
+            if subject_id not in excluded_reasons:
+                excluded_reasons[subject_id] = []
+            excluded_reasons[subject_id].append(criterion)
+
+    # Séparer les sujets
+    excluded_ids = [stats["subject_ids"][i] for i in excluded_indices]
+    clean_ids = [sid for i, sid in enumerate(stats["subject_ids"]) if i not in excluded_indices]
+
+    # 1. Sauvegarder les sujets exclus avec raisons
+    excluded_data = {
+        "n_excluded": len(excluded_ids),
+        "subjects": {
+            sid: {
+                "reasons": excluded_reasons[sid],
+                "mean": float(stats["means"][stats["subject_ids"].index(sid)]),
+                "variance_mean": float(stats["variances_mean"][stats["subject_ids"].index(sid)]),
+                "variance_max": float(stats["variances_max"][stats["subject_ids"].index(sid)]),
+            }
+            for sid in excluded_ids
+        }
+    }
+
+    excluded_path = output_dir / "subjects_excluded.json"
+    with open(excluded_path, "w") as f:
+        json.dump(excluded_data, f, indent=2)
+    print(f"✓ Sujets exclus sauvegardés: {excluded_path}")
+
+    # 2. Sauvegarder les sujets propres
+    clean_data = {
+        "n_subjects": len(clean_ids),
+        "subject_ids": clean_ids,
+        "description": "Sujets sans anomalies détectées (variance et moyenne dans les limites normales)"
+    }
+
+    clean_path = output_dir / "subjects_clean.json"
+    with open(clean_path, "w") as f:
+        json.dump(clean_data, f, indent=2)
+    print(f"✓ Sujets propres sauvegardés: {clean_path}")
+
+    # 3. Sauvegarder les stats complètes (pour référence)
+    full_stats = {
+        "n_total": len(stats["subject_ids"]),
+        "n_clean": len(clean_ids),
+        "n_excluded": len(excluded_ids),
+        "signal_mean": float(stats["means"].mean()),
+        "signal_std": float(stats["means"].std()),
+        "variance_mean": float(stats["variances_mean"].mean()),
+        "variance_std": float(stats["variances_mean"].std()),
+        "n_male": int((stats["sex"] == 0).sum()),
+        "n_female": int((stats["sex"] == 1).sum()),
+        "exclusion_criteria": {
+            criterion: len(indices) for criterion, indices in problematic.items()
+        }
+    }
+
+    stats_path = output_dir / "population_stats.json"
+    with open(stats_path, "w") as f:
+        json.dump(full_stats, f, indent=2)
+    print(f"✓ Statistiques sauvegardées: {stats_path}")
+
+    return clean_ids, excluded_ids
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 if __name__ == "__main__":
@@ -322,5 +406,17 @@ if __name__ == "__main__":
         # Visualisation
         save_path = OUTPUT_DIR / "population_exploration.png"
         plot_population_stats(stats, save_path=save_path)
+        print(f"✓ Figure sauvegardée: {save_path}")
 
-        print(f"\n→ Regarde le fichier: {save_path}")
+        # Sauvegarder les listes de sujets
+        print("\n" + "-" * 40)
+        print("SAUVEGARDE DES LISTES")
+        print("-" * 40)
+        clean_ids, excluded_ids = save_subject_lists(stats, problematic, OUTPUT_DIR)
+
+        print(f"\n{'=' * 60}")
+        print("RÉSULTAT FINAL")
+        print(f"{'=' * 60}")
+        print(f"   Sujets PROPRES:  {len(clean_ids)} → subjects_clean.json")
+        print(f"   Sujets EXCLUS:   {len(excluded_ids)} → subjects_excluded.json")
+        print(f"{'=' * 60}")
