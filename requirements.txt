@@ -3,3 +3,7 @@ nibabel
 nilearn
 scikit-learn
 tqdm
+torch
+pyyaml
+matplotlib
+seaborn
