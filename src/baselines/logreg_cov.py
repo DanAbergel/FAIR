@@ -31,8 +31,14 @@ POURQUOI UNE BASELINE?
 
 RÉSULTATS (HCP 1200, Schaefer 200, 5-fold CV)
 =============================================
-ROC-AUC per fold: [0.825, 0.832, 0.817, 0.857, 0.841]
-Mean ROC-AUC: 0.834 ± 0.014
+
+Sans filtrage (967 sujets, USE_CLEAN_SUBJECTS=False):
+    ROC-AUC per fold: [0.825, 0.832, 0.817, 0.857, 0.841]
+    Mean ROC-AUC: 0.834 ± 0.014
+
+Avec filtrage outliers (945 sujets, USE_CLEAN_SUBJECTS=True):
+    ROC-AUC per fold: [à mesurer]
+    Mean ROC-AUC: [à mesurer]
 
 → C'est la référence à battre pour les modèles plus complexes.
 
@@ -79,6 +85,19 @@ HCP_ROOT = Path("/sci/labs/arieljaffe/dan.abergel1/HCP_data")
 
 # Fichier JSON contenant les labels (sexe) pour chaque sujet
 LABELS_JSON = HCP_ROOT / "model_input" / "imageID_to_labels.json"
+
+# Fichier JSON contenant la liste des sujets propres (sans outliers)
+# Généré par step2_explore_population.py
+CLEAN_SUBJECTS_JSON = HCP_ROOT / "subjects_clean.json"
+
+# =============================================================================
+# OPTION: Filtrage des sujets
+# =============================================================================
+# True  = Utilise uniquement les 945 sujets propres (subjects_clean.json)
+#         → Exclut les 22 sujets avec variance/moyenne extrême
+# False = Utilise tous les 967 sujets (comportement original)
+#         → Résultat: ROC-AUC = 0.834 ± 0.014
+USE_CLEAN_SUBJECTS = True
 
 # Nombre de régions dans l'atlas Schaefer
 # Options: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
@@ -291,9 +310,30 @@ def main() -> None:
     X_list = []  # Liste des vecteurs de features
     y_list = []  # Liste des labels
 
-    # Trouver tous les dossiers de sujets
-    subject_dirs = sorted(HCP_ROOT.glob("subject_*"))
-    print(f"Found {len(subject_dirs)} subject directories")
+    # Trouver les sujets à utiliser
+    if USE_CLEAN_SUBJECTS:
+        # Charger la liste des sujets propres (sans outliers)
+        if not CLEAN_SUBJECTS_JSON.exists():
+            raise FileNotFoundError(
+                f"Fichier {CLEAN_SUBJECTS_JSON} introuvable.\n"
+                "Lance d'abord: python -m src.step2_explore_population"
+            )
+        with open(CLEAN_SUBJECTS_JSON, "r") as f:
+            clean_data = json.load(f)
+        clean_ids = set(clean_data["subject_ids"])
+        subject_dirs = [
+            HCP_ROOT / f"subject_{sid}"
+            for sid in clean_data["subject_ids"]
+            if (HCP_ROOT / f"subject_{sid}").exists()
+        ]
+        print(f"Mode: CLEAN SUBJECTS (USE_CLEAN_SUBJECTS=True)")
+        print(f"Found {len(subject_dirs)} clean subject directories (excluded {967 - len(subject_dirs)} outliers)")
+    else:
+        # Utiliser tous les sujets
+        subject_dirs = sorted(HCP_ROOT.glob("subject_*"))
+        clean_ids = None  # Pas de filtrage
+        print(f"Mode: ALL SUBJECTS (USE_CLEAN_SUBJECTS=False)")
+        print(f"Found {len(subject_dirs)} subject directories")
 
     # tqdm affiche une barre de progression
     for subject_dir in tqdm(subject_dirs, desc="Processing subjects"):
@@ -423,6 +463,8 @@ def main() -> None:
     print("\n" + "=" * 50)
     print("RESULTS")
     print("=" * 50)
+    mode_str = "CLEAN (945 sujets)" if USE_CLEAN_SUBJECTS else "ALL (967 sujets)"
+    print(f"Mode: {mode_str}")
     print(f"ROC-AUC per fold: {np.round(scores, 3)}")
     print(f"Mean ROC-AUC: {scores.mean():.3f} ± {scores.std():.3f}")
     print("=" * 50)
