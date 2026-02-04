@@ -35,7 +35,7 @@ CLEAN_SUBJECTS_JSON = HCP_ROOT / "subjects_clean.json"
 
 # Résolutions Schaefer à extraire
 # Options disponibles: 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000
-SCHAEFER_RESOLUTIONS = [100, 300, 400, 500]  # 200 déjà fait
+SCHAEFER_RESOLUTIONS = [100, 300]  # 200 déjà fait
 
 # Résolution spatiale de l'atlas (doit correspondre aux données fMRI)
 ATLAS_RESOLUTION_MM = 2

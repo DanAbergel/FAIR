@@ -38,7 +38,7 @@ CLEAN_SUBJECTS_JSON = HCP_ROOT / "subjects_clean.json"
 
 # Atlas Schaefer à tester (100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
 # Note: il faut que les fichiers .npy existent pour chaque résolution
-SCHAEFER_REGIONS = [100, 200, 300, 400, 500]
+SCHAEFER_REGIONS = [100, 200, 300]
 
 N_SPLITS = 5
 RANDOM_STATE = 42
