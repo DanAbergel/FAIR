@@ -37,8 +37,8 @@ Sans filtrage (967 sujets, USE_CLEAN_SUBJECTS=False):
     Mean ROC-AUC: 0.834 ± 0.014
 
 Avec filtrage outliers (945 sujets, USE_CLEAN_SUBJECTS=True):
-    ROC-AUC per fold: [à mesurer]
-    Mean ROC-AUC: [à mesurer]
+    ROC-AUC per fold: [0.854, 0.873, 0.863, 0.871, 0.783]
+    Mean ROC-AUC: 0.849 ± 0.033
 
 → C'est la référence à battre pour les modèles plus complexes.
 
