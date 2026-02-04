@@ -40,6 +40,10 @@ SCHAEFER_RESOLUTIONS = [100, 300]  # 200 déjà fait
 # Résolution spatiale de l'atlas (doit correspondre aux données fMRI)
 ATLAS_RESOLUTION_MM = 2
 
+# Dossier pour le cache nilearn (atlas téléchargés)
+# On utilise le dossier lab au lieu du home (problème d'espace disque)
+NILEARN_DATA_DIR = str(HCP_ROOT / "nilearn_cache")
+
 # Si True, skip les sujets qui ont déjà le fichier .npy
 SKIP_EXISTING = True
 
@@ -78,7 +82,8 @@ def load_schaefer_atlas(n_regions: int):
     print(f"  Loading Schaefer {n_regions} atlas...")
     atlas = datasets.fetch_atlas_schaefer_2018(
         n_rois=n_regions,
-        resolution_mm=ATLAS_RESOLUTION_MM
+        resolution_mm=ATLAS_RESOLUTION_MM,
+        data_dir=NILEARN_DATA_DIR
     )
 
     masker = NiftiLabelsMasker(
