@@ -1,17 +1,13 @@
 """
-Step 4: Compare normalization axes for connectivity matrices
-============================================================
+Step 4: Compare normalization axes and feature types across multiple labels
+===========================================================================
 
-Question: Before computing the covariance matrix, should we z-score the
-time series, and along which axis?
+Experiments:
+1. Normalization axis: none, per region, per timepoint, both
+2. Features: covariance only vs covariance + region means
+3. Labels: Sex, Age, BMI, BPDiastolic
 
-Conditions (all use covariance as the connectivity measure):
-1. No normalization         -> raw covariance
-2. Z-score per region       -> covariance (= correlation)
-3. Z-score per timepoint    -> covariance
-4. Z-score both             -> covariance (per region, then per timepoint)
-
-Atlas: Schaefer 100, 200, 300
+All connectivity features use covariance. The only variable is the z-score axis.
 
 Author: Dan Abergel
 Master's Thesis - Hebrew University of Jerusalem
@@ -22,12 +18,13 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.model_selection import StratifiedKFold, KFold, cross_val_score
 
 
 # =============================================================================
@@ -36,11 +33,52 @@ from sklearn.model_selection import StratifiedKFold, cross_val_score
 HCP_ROOT = Path("/sci/labs/arieljaffe/dan.abergel1/HCP_data")
 LABELS_JSON = HCP_ROOT / "model_input" / "imageID_to_labels.json"
 CLEAN_SUBJECTS_JSON = HCP_ROOT / "subjects_clean.json"
+HCP_SUBJECTS_CSV = HCP_ROOT / "HCP_YA_subjects.csv"
 
 SCHAEFER_REGIONS = [100, 200, 300]
 
 N_SPLITS = 5
 RANDOM_STATE = 42
+
+# Labels to evaluate
+LABELS = {
+    "Sex": {
+        "column": "Gender",
+        "type": "classification",
+        "transform": lambda x: 1 if x == "M" else 0,
+        "scoring": "roc_auc",
+    },
+    "Age": {
+        "column": "Age_in_Yrs",
+        "type": "regression",
+        "transform": float,
+        "scoring": "r2",
+    },
+    "BMI": {
+        "column": "BMI",
+        "type": "regression",
+        "transform": float,
+        "scoring": "r2",
+    },
+    "BPDiastolic": {
+        "column": "BPDiastolic",
+        "type": "regression",
+        "transform": float,
+        "scoring": "r2",
+    },
+    "Education": {
+        "column": "SSAGA_Educ",
+        "type": "regression",
+        "transform": float,
+        "scoring": "r2",
+    },
+    "Race": {
+        "column": "Race",
+        "type": "classification",
+        "transform": lambda x: 1 if x == "White" else 0,
+        "scoring": "roc_auc",
+    },
+}
 
 
 # =============================================================================
@@ -57,11 +95,9 @@ def zscore_per_region(ts: np.ndarray) -> np.ndarray:
     Z-score along time axis (axis=0), independently for each region.
     Each region gets mean=0, std=1 across time.
     Result: covariance of this = correlation matrix.
-
-    ts: (T, R)
     """
-    mean = ts.mean(axis=0, keepdims=True)  # (1, R)
-    std = ts.std(axis=0, keepdims=True)    # (1, R)
+    mean = ts.mean(axis=0, keepdims=True)
+    std = ts.std(axis=0, keepdims=True)
     std = np.where(std < 1e-10, 1.0, std)
     return (ts - mean) / std
 
@@ -70,66 +106,54 @@ def zscore_per_timepoint(ts: np.ndarray) -> np.ndarray:
     """
     Z-score along region axis (axis=1), independently for each timepoint.
     Each timepoint gets mean=0, std=1 across regions.
-    Removes global signal fluctuations at each time point.
-
-    ts: (T, R)
     """
-    mean = ts.mean(axis=1, keepdims=True)  # (T, 1)
-    std = ts.std(axis=1, keepdims=True)    # (T, 1)
+    mean = ts.mean(axis=1, keepdims=True)
+    std = ts.std(axis=1, keepdims=True)
     std = np.where(std < 1e-10, 1.0, std)
     return (ts - mean) / std
 
 
 def zscore_both(ts: np.ndarray) -> np.ndarray:
-    """
-    Z-score per region first (axis=0), then per timepoint (axis=1).
-    Double normalization.
-
-    ts: (T, R)
-    """
-    # First: per region (temporal)
+    """Z-score per region first, then per timepoint."""
     ts = zscore_per_region(ts)
-    # Then: per timepoint (spatial)
     ts = zscore_per_timepoint(ts)
     return ts
 
 
 # =============================================================================
-# FEATURE EXTRACTION (always covariance)
+# FEATURE EXTRACTION
 # =============================================================================
 
-def extract_covariance(ts: np.ndarray) -> np.ndarray:
-    """
-    Extract upper triangle of the covariance matrix.
-
-    ts: (T, R) -> vector of size R*(R-1)/2
-    """
-    cov = np.cov(ts, rowvar=False)  # (R, R)
+def extract_cov(ts: np.ndarray) -> np.ndarray:
+    """Extract upper triangle of the covariance matrix."""
+    cov = np.cov(ts, rowvar=False)
     idx = np.triu_indices(cov.shape[0], k=1)
     return cov[idx].astype(np.float32)
+
+
+def extract_cov_and_means(ts: np.ndarray) -> np.ndarray:
+    """Extract upper triangle of covariance matrix + mean per region."""
+    cov = np.cov(ts, rowvar=False)
+    idx = np.triu_indices(cov.shape[0], k=1)
+    cov_features = cov[idx].astype(np.float32)
+    region_means = ts.mean(axis=0).astype(np.float32)
+    return np.concatenate([cov_features, region_means])
 
 
 # =============================================================================
 # CONDITIONS
 # =============================================================================
 
-CONDITIONS = [
-    {
-        "name": "No normalization",
-        "normalize": no_normalization,
-    },
-    {
-        "name": "Z-score per region",
-        "normalize": zscore_per_region,
-    },
-    {
-        "name": "Z-score per timepoint",
-        "normalize": zscore_per_timepoint,
-    },
-    {
-        "name": "Z-score both",
-        "normalize": zscore_both,
-    },
+NORMALIZATIONS = [
+    {"name": "No normalization", "fn": no_normalization},
+    {"name": "Z-score per region", "fn": zscore_per_region},
+    {"name": "Z-score per timepoint", "fn": zscore_per_timepoint},
+    {"name": "Z-score both", "fn": zscore_both},
+]
+
+FEATURE_TYPES = [
+    {"name": "cov", "fn": extract_cov},
+    {"name": "cov + means", "fn": extract_cov_and_means},
 ]
 
 
@@ -149,16 +173,25 @@ def load_subject(subject_id: str, n_regions: int) -> np.ndarray | None:
 
 
 def load_dataset(n_regions: int, verbose: bool = True):
-    """Load clean subjects and labels for a given Schaefer resolution."""
-    with open(LABELS_JSON, "r") as f:
-        labels_dict = json.load(f)
+    """
+    Load clean subjects and all labels from HCP CSV.
 
+    Returns:
+        subjects: list of (subject_id, timeseries)
+        labels_df: DataFrame with columns for each label, indexed by subject_id
+    """
+    # Load HCP subject info
+    hcp_df = pd.read_csv(HCP_SUBJECTS_CSV)
+    hcp_df["Subject"] = hcp_df["Subject"].astype(str)
+    hcp_df = hcp_df.set_index("Subject")
+
+    # Load clean subject list
     with open(CLEAN_SUBJECTS_JSON, "r") as f:
         clean_data = json.load(f)
     clean_ids = clean_data["subject_ids"]
 
     subjects = []
-    labels = []
+    rows = []
 
     iterator = tqdm(clean_ids, desc=f"Loading Schaefer {n_regions}") if verbose else clean_ids
 
@@ -166,15 +199,41 @@ def load_dataset(n_regions: int, verbose: bool = True):
         ts = load_subject(subject_id, n_regions)
         if ts is None:
             continue
-
-        scan_key = f"{subject_id}_REST1_LR"
-        if scan_key not in labels_dict:
+        if subject_id not in hcp_df.index:
             continue
 
         subjects.append((subject_id, ts))
-        labels.append(labels_dict[scan_key]["Sex_Binary"])
+        rows.append(hcp_df.loc[subject_id])
 
-    return subjects, np.array(labels)
+    labels_df = pd.DataFrame(rows)
+    return subjects, labels_df
+
+
+def get_label_array(labels_df: pd.DataFrame, label_name: str):
+    """
+    Extract and transform a label column, dropping NaN subjects.
+
+    Returns:
+        valid_indices: list of integer indices into subjects list
+        y: numpy array of label values
+    """
+    label_cfg = LABELS[label_name]
+    col = label_cfg["column"]
+
+    valid_indices = []
+    y_list = []
+
+    for i, (_, row) in enumerate(labels_df.iterrows()):
+        val = row.get(col)
+        if pd.isna(val):
+            continue
+        try:
+            y_list.append(label_cfg["transform"](val))
+            valid_indices.append(i)
+        except (ValueError, TypeError):
+            continue
+
+    return valid_indices, np.array(y_list)
 
 
 # =============================================================================
@@ -185,44 +244,48 @@ def evaluate_condition(
     subjects: list,
     y: np.ndarray,
     normalize_fn: Callable,
-    condition_name: str
+    extract_fn: Callable,
+    label_type: str,
+    scoring: str,
 ) -> dict:
-    """Evaluate one normalization condition with covariance features."""
+    """Evaluate one condition."""
 
     X_list = []
     for subject_id, ts in subjects:
         ts_norm = normalize_fn(ts)
-        features = extract_covariance(ts_norm)
+        features = extract_fn(ts_norm)
         X_list.append(features)
 
     X = np.stack(X_list)
 
-    # Check for NaN/Inf
     n_bad = np.isnan(X).sum() + np.isinf(X).sum()
     if n_bad > 0:
-        print(f"  WARNING: {n_bad} NaN/Inf values detected - replacing with 0")
+        print(f"    WARNING: {n_bad} NaN/Inf values - replacing with 0")
         X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
 
-    pipeline = Pipeline([
-        ("scaler", StandardScaler()),
-        ("classifier", LogisticRegression(
-            penalty="l2",
-            C=1.0,
-            max_iter=5000,
-            class_weight="balanced",
-            solver="lbfgs",
-            n_jobs=-1
-        ))
-    ])
+    if label_type == "classification":
+        pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("classifier", LogisticRegression(
+                penalty="l2", C=1.0, max_iter=5000,
+                class_weight="balanced", solver="lbfgs", n_jobs=-1
+            ))
+        ])
+        cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
+    else:
+        pipeline = Pipeline([
+            ("scaler", StandardScaler()),
+            ("regressor", Ridge(alpha=1.0))
+        ])
+        cv = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
 
-    cv = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
-    scores = cross_val_score(pipeline, X, y, cv=cv, scoring="roc_auc")
+    scores = cross_val_score(pipeline, X, y, cv=cv, scoring=scoring)
 
     return {
-        "name": condition_name,
         "scores": scores,
         "mean": scores.mean(),
         "std": scores.std(),
+        "n_features": X.shape[1],
     }
 
 
@@ -231,73 +294,48 @@ def evaluate_condition(
 # =============================================================================
 
 def plot_results(all_results: list, output_dir: Path):
-    """Generate comparison plots."""
+    """Generate one heatmap per label."""
 
-    atlas_sizes = sorted(set(r["n_regions"] for r in all_results))
-    norm_names = list(dict.fromkeys(r["normalization"] for r in all_results))
+    labels_in_results = list(dict.fromkeys(r["label"] for r in all_results))
 
-    # Build results matrix
-    results_matrix = np.zeros((len(norm_names), len(atlas_sizes)))
-    std_matrix = np.zeros((len(norm_names), len(atlas_sizes)))
+    for label_name in labels_in_results:
+        label_results = [r for r in all_results if r["label"] == label_name]
+        label_cfg = LABELS[label_name]
+        metric_name = label_cfg["scoring"].upper()
 
-    for r in all_results:
-        i = norm_names.index(r["normalization"])
-        j = atlas_sizes.index(r["n_regions"])
-        results_matrix[i, j] = r["mean"]
-        std_matrix[i, j] = r["std"]
+        atlas_sizes = sorted(set(r["n_regions"] for r in label_results))
+        conditions = list(dict.fromkeys(r["condition"] for r in label_results))
 
-    # === Figure 1: Heatmap ===
-    fig1, ax1 = plt.subplots(figsize=(10, 5))
+        matrix = np.zeros((len(conditions), len(atlas_sizes)))
+        for r in label_results:
+            i = conditions.index(r["condition"])
+            j = atlas_sizes.index(r["n_regions"])
+            matrix[i, j] = r["mean"]
 
-    im = ax1.imshow(results_matrix, cmap='RdYlGn', aspect='auto',
-                    vmin=results_matrix.min() - 0.02,
-                    vmax=results_matrix.max() + 0.02)
+        fig, ax = plt.subplots(figsize=(10, max(4, len(conditions) * 0.6 + 1)))
+        im = ax.imshow(matrix, cmap='RdYlGn', aspect='auto',
+                       vmin=matrix.min() - 0.02, vmax=matrix.max() + 0.02)
 
-    ax1.set_xticks(range(len(atlas_sizes)))
-    ax1.set_xticklabels([f'Schaefer {n}' for n in atlas_sizes])
-    ax1.set_yticks(range(len(norm_names)))
-    ax1.set_yticklabels(norm_names)
+        ax.set_xticks(range(len(atlas_sizes)))
+        ax.set_xticklabels([f'Schaefer {n}' for n in atlas_sizes])
+        ax.set_yticks(range(len(conditions)))
+        ax.set_yticklabels(conditions)
 
-    for i in range(len(norm_names)):
-        for j in range(len(atlas_sizes)):
-            val = results_matrix[i, j]
-            color = 'white' if val < results_matrix.mean() else 'black'
-            ax1.text(j, i, f'{val:.3f}', ha='center', va='center',
-                     color=color, fontsize=11, fontweight='bold')
+        for i in range(len(conditions)):
+            for j in range(len(atlas_sizes)):
+                val = matrix[i, j]
+                color = 'white' if val < matrix.mean() else 'black'
+                ax.text(j, i, f'{val:.3f}', ha='center', va='center',
+                        color=color, fontsize=10, fontweight='bold')
 
-    ax1.set_xlabel('Atlas')
-    ax1.set_ylabel('Normalization')
-    ax1.set_title('ROC-AUC: Normalization axis x Atlas resolution',
-                  fontsize=13, fontweight='bold')
-    plt.colorbar(im, ax=ax1, label='ROC-AUC')
-    plt.tight_layout()
-    fig1.savefig(output_dir / 'comparison_heatmap.png', dpi=150, bbox_inches='tight')
-    print(f"  Saved: {output_dir / 'comparison_heatmap.png'}")
-    plt.close(fig1)
+        ax.set_title(f'{label_name} prediction ({metric_name})', fontsize=13, fontweight='bold')
+        plt.colorbar(im, ax=ax, label=metric_name)
+        plt.tight_layout()
 
-    # === Figure 2: Line plot ===
-    fig2, ax2 = plt.subplots(figsize=(10, 6))
-
-    colors = ['#e74c3c', '#2ecc71', '#3498db', '#9b59b6']
-
-    for i, norm in enumerate(norm_names):
-        means = results_matrix[i, :]
-        stds = std_matrix[i, :]
-        ax2.plot(atlas_sizes, means, 'o-', color=colors[i], label=norm,
-                 linewidth=2, markersize=8)
-        ax2.fill_between(atlas_sizes, means - stds, means + stds,
-                         color=colors[i], alpha=0.1)
-
-    ax2.set_xlabel('Number of Schaefer regions')
-    ax2.set_ylabel('ROC-AUC')
-    ax2.set_title('Performance vs Atlas resolution', fontsize=13, fontweight='bold')
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
-    ax2.set_xticks(atlas_sizes)
-    plt.tight_layout()
-    fig2.savefig(output_dir / 'comparison_lines.png', dpi=150, bbox_inches='tight')
-    print(f"  Saved: {output_dir / 'comparison_lines.png'}")
-    plt.close(fig2)
+        path = output_dir / f'comparison_{label_name.lower()}.png'
+        fig.savefig(path, dpi=150, bbox_inches='tight')
+        print(f"  Saved: {path}")
+        plt.close(fig)
 
 
 # =============================================================================
@@ -306,12 +344,12 @@ def plot_results(all_results: list, output_dir: Path):
 
 def main():
     print("=" * 70)
-    print("NORMALIZATION AXIS COMPARISON")
+    print("NORMALIZATION x FEATURES x LABELS COMPARISON")
     print("=" * 70)
     print(f"\nAtlas resolutions: {SCHAEFER_REGIONS}")
-    print(f"Normalization conditions: {len(CONDITIONS)}")
-    print(f"Feature extraction: covariance (always)")
-    print(f"Total combinations: {len(SCHAEFER_REGIONS) * len(CONDITIONS)}")
+    print(f"Normalizations: {len(NORMALIZATIONS)}")
+    print(f"Feature types: {[f['name'] for f in FEATURE_TYPES]}")
+    print(f"Labels: {list(LABELS.keys())}")
 
     all_results = []
 
@@ -320,10 +358,7 @@ def main():
         print(f"SCHAEFER {n_regions} REGIONS")
         print(f"{'='*70}")
 
-        n_features = n_regions * (n_regions - 1) // 2
-        print(f"Features: {n_features} (upper triangle {n_regions}x{n_regions})")
-
-        subjects, y = load_dataset(n_regions, verbose=True)
+        subjects, labels_df = load_dataset(n_regions, verbose=True)
 
         if len(subjects) == 0:
             print(f"  No subjects found for Schaefer {n_regions}")
@@ -331,63 +366,83 @@ def main():
 
         print(f"Subjects loaded: {len(subjects)}")
 
-        for condition in CONDITIONS:
-            print(f"\n  > {condition['name']}")
+        for label_name, label_cfg in LABELS.items():
+            valid_idx, y = get_label_array(labels_df, label_name)
 
-            result = evaluate_condition(
-                subjects, y,
-                condition["normalize"],
-                condition["name"]
-            )
+            if len(y) < 50:
+                print(f"\n  Skipping {label_name}: only {len(y)} valid subjects")
+                continue
 
-            result["n_regions"] = n_regions
-            result["n_features"] = n_features
-            result["normalization"] = condition["name"]
+            valid_subjects = [subjects[i] for i in valid_idx]
+            print(f"\n  --- {label_name} ({label_cfg['type']}, n={len(y)}) ---")
 
-            all_results.append(result)
-            print(f"    ROC-AUC: {result['mean']:.3f} +/- {result['std']:.3f}")
+            for norm in NORMALIZATIONS:
+                for feat in FEATURE_TYPES:
+                    condition = f"{norm['name']} | {feat['name']}"
+                    print(f"    > {condition}")
+
+                    result = evaluate_condition(
+                        valid_subjects, y,
+                        norm["fn"], feat["fn"],
+                        label_cfg["type"], label_cfg["scoring"],
+                    )
+
+                    result["n_regions"] = n_regions
+                    result["normalization"] = norm["name"]
+                    result["features"] = feat["name"]
+                    result["label"] = label_name
+                    result["condition"] = condition
+
+                    all_results.append(result)
+
+                    metric = label_cfg["scoring"].upper()
+                    print(f"      {metric}: {result['mean']:.3f} +/- {result['std']:.3f}")
 
     # =========================================================================
-    # SUMMARY TABLE
+    # SUMMARY
     # =========================================================================
     print(f"\n{'='*70}")
     print("RESULTS SUMMARY")
     print(f"{'='*70}")
 
-    results_sorted = sorted(all_results, key=lambda x: x["mean"], reverse=True)
+    for label_name in LABELS:
+        label_results = [r for r in all_results if r["label"] == label_name]
+        if not label_results:
+            continue
 
-    print(f"\n{'Rank':<6} {'Atlas':<12} {'Normalization':<25} {'ROC-AUC':<15}")
-    print("-" * 60)
+        metric = LABELS[label_name]["scoring"].upper()
+        results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=True)
 
-    for i, r in enumerate(results_sorted):
-        score_str = f"{r['mean']:.3f} +/- {r['std']:.3f}"
-        marker = ">>> " if i == 0 else "    "
-        print(f"{marker}{i+1:<2} {r['n_regions']:<12} {r['normalization']:<25} {score_str}")
+        print(f"\n  {label_name} ({metric}):")
+        print(f"  {'Rank':<5} {'Atlas':<10} {'Condition':<40} {'Score':<15}")
+        print(f"  {'-'*70}")
 
-    # Best per atlas
-    print(f"\n{'-'*60}")
-    print("BEST NORMALIZATION PER ATLAS")
-    print(f"{'-'*60}")
-
-    for n in sorted(set(r["n_regions"] for r in all_results)):
-        best = max([r for r in all_results if r["n_regions"] == n], key=lambda x: x["mean"])
-        print(f"  Schaefer {n:<5} -> {best['normalization']:<25} {best['mean']:.3f} +/- {best['std']:.3f}")
+        for i, r in enumerate(results_sorted[:5]):
+            score_str = f"{r['mean']:.3f} +/- {r['std']:.3f}"
+            marker = ">>>" if i == 0 else "   "
+            print(f"  {marker}{i+1:<2} {r['n_regions']:<10} {r['condition']:<40} {score_str}")
 
     # =========================================================================
-    # SAVE RESULTS
+    # SAVE
     # =========================================================================
-    output_path = HCP_ROOT / "normalization_axis_comparison.json"
+    output_path = HCP_ROOT / "normalization_features_labels_comparison.json"
     output_data = {
-        "description": "Comparison of z-score normalization axes before covariance computation",
-        "conditions": [c["name"] for c in CONDITIONS],
+        "description": "Normalization axis x feature type x label comparison",
         "schaefer_regions": SCHAEFER_REGIONS,
+        "normalizations": [n["name"] for n in NORMALIZATIONS],
+        "feature_types": [f["name"] for f in FEATURE_TYPES],
+        "labels": list(LABELS.keys()),
         "results": [
             {
                 "n_regions": r["n_regions"],
                 "normalization": r["normalization"],
-                "mean_auc": float(r["mean"]),
-                "std_auc": float(r["std"]),
-                "fold_scores": r["scores"].tolist()
+                "features": r["features"],
+                "label": r["label"],
+                "condition": r["condition"],
+                "mean": float(r["mean"]),
+                "std": float(r["std"]),
+                "fold_scores": r["scores"].tolist(),
+                "n_features": r["n_features"],
             }
             for r in all_results
         ],
