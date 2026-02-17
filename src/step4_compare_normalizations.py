@@ -55,25 +55,25 @@ LABELS = {
         "column": "Age_in_Yrs",
         "type": "regression",
         "transform": float,
-        "scoring": "r2",
+        "scoring": "neg_mean_absolute_error",
     },
     "BMI": {
         "column": "BMI",
         "type": "regression",
         "transform": float,
-        "scoring": "r2",
+        "scoring": "neg_mean_absolute_error",
     },
     "BPDiastolic": {
         "column": "BPDiastolic",
         "type": "regression",
         "transform": float,
-        "scoring": "r2",
+        "scoring": "neg_mean_absolute_error",
     },
     "Education": {
         "column": "SSAGA_Educ",
         "type": "regression",
         "transform": float,
-        "scoring": "r2",
+        "scoring": "neg_mean_absolute_error",
     },
     "Race": {
         "column": "Race",
@@ -257,6 +257,10 @@ def evaluate_condition(
 
     scores = cross_val_score(pipeline, X, y, cv=cv, scoring=scoring)
 
+    # sklearn returns neg_mean_absolute_error as negative values, flip sign
+    if scoring.startswith("neg_"):
+        scores = -scores
+
     return {
         "scores": scores,
         "mean": scores.mean(),
@@ -277,7 +281,10 @@ def plot_results(all_results: list, output_dir: Path):
     for label_name in labels_in_results:
         label_results = [r for r in all_results if r["label"] == label_name]
         label_cfg = LABELS[label_name]
-        metric_name = label_cfg["scoring"].upper()
+        scoring = label_cfg["scoring"]
+        metric_name = "MAE" if "mae" in scoring else scoring.upper()
+        # For MAE, lower is better -> reverse colormap
+        cmap = 'RdYlGn_r' if "mae" in scoring else 'RdYlGn'
 
         atlas_sizes = sorted(set(r["n_regions"] for r in label_results))
         conditions = list(dict.fromkeys(r["condition"] for r in label_results))
@@ -289,7 +296,7 @@ def plot_results(all_results: list, output_dir: Path):
             matrix[i, j] = r["mean"]
 
         fig, ax = plt.subplots(figsize=(10, max(4, len(conditions) * 0.8 + 1)))
-        im = ax.imshow(matrix, cmap='RdYlGn', aspect='auto',
+        im = ax.imshow(matrix, cmap=cmap, aspect='auto',
                        vmin=matrix.min() - 0.02, vmax=matrix.max() + 0.02)
 
         ax.set_xticks(range(len(atlas_sizes)))
@@ -367,7 +374,7 @@ def main():
 
                 all_results.append(result)
 
-                metric = label_cfg["scoring"].upper()
+                metric = "MAE" if "mae" in label_cfg["scoring"] else label_cfg["scoring"].upper()
                 print(f"      {metric}: {result['mean']:.3f} +/- {result['std']:.3f}"
                       f"  ({result['n_features']} features)")
 
@@ -383,8 +390,11 @@ def main():
         if not label_results:
             continue
 
-        metric = LABELS[label_name]["scoring"].upper()
-        results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=True)
+        scoring = LABELS[label_name]["scoring"]
+        metric = "MAE" if "mae" in scoring else scoring.upper()
+        # For MAE, lower is better; for ROC-AUC, higher is better
+        reverse = "mae" not in scoring
+        results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=reverse)
 
         print(f"\n  {label_name} ({metric}):")
         print(f"  {'Rank':<5} {'Atlas':<10} {'Condition':<25} {'Score':<18} {'Features'}")
