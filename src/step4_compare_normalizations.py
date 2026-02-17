@@ -33,7 +33,7 @@ from sklearn.model_selection import StratifiedKFold, KFold, cross_val_score
 HCP_ROOT = Path("/sci/labs/arieljaffe/dan.abergel1/HCP_data")
 LABELS_JSON = HCP_ROOT / "model_input" / "imageID_to_labels.json"
 CLEAN_SUBJECTS_JSON = HCP_ROOT / "subjects_clean.json"
-HCP_SUBJECTS_CSV = HCP_ROOT / "HCP_YA_subjects.csv"
+HCP_SUBJECTS_CSV = HCP_ROOT / "metadata" / "HCP_YA_subjects.csv"
 
 SCHAEFER_REGIONS = [100, 200, 300]
 
