@@ -95,47 +95,60 @@ def extract_cov_upper(ts: np.ndarray) -> np.ndarray:
     return cov[idx].astype(np.float32)
 
 
+def _zscore_per_region(ts):
+    mean = ts.mean(axis=0, keepdims=True)
+    std = ts.std(axis=0, keepdims=True)
+    std = np.where(std < 1e-10, 1.0, std)
+    return (ts - mean) / std, ts.mean(axis=0).astype(np.float32)
+
+
+def _zscore_per_timepoint(ts):
+    mean = ts.mean(axis=1, keepdims=True)
+    std = ts.std(axis=1, keepdims=True)
+    std = np.where(std < 1e-10, 1.0, std)
+    return (ts - mean) / std, ts.mean(axis=1).astype(np.float32)
+
+
+def _zscore_global(ts):
+    grand_mean = np.array([ts.mean()], dtype=np.float32)
+    std = ts.std()
+    std = std if std > 1e-10 else 1.0
+    return (ts - ts.mean()) / std, grand_mean
+
+
 def normalize_and_extract(ts: np.ndarray, condition: str) -> np.ndarray:
     """
     Normalize time series and extract features.
-    The means removed during normalization are saved and appended as features.
 
     ts: (T, R) raw time series
-
     Returns: feature vector
     """
     if condition == "No normalization":
-        # No normalization -> covariance only
         return extract_cov_upper(ts)
 
     elif condition == "Z-score per region":
-        # Save region means (R values), then z-score per region
-        region_means = ts.mean(axis=0).astype(np.float32)  # (R,)
-        mean = ts.mean(axis=0, keepdims=True)
-        std = ts.std(axis=0, keepdims=True)
-        std = np.where(std < 1e-10, 1.0, std)
-        ts_norm = (ts - mean) / std
-        cov_features = extract_cov_upper(ts_norm)
-        return np.concatenate([cov_features, region_means])
+        ts_norm, _ = _zscore_per_region(ts)
+        return extract_cov_upper(ts_norm)
+
+    elif condition == "Z-score per region + means":
+        ts_norm, region_means = _zscore_per_region(ts)
+        return np.concatenate([extract_cov_upper(ts_norm), region_means])
 
     elif condition == "Z-score per timepoint":
-        # Save timepoint means (T values), then z-score per timepoint
-        timepoint_means = ts.mean(axis=1).astype(np.float32)  # (T,)
-        mean = ts.mean(axis=1, keepdims=True)
-        std = ts.std(axis=1, keepdims=True)
-        std = np.where(std < 1e-10, 1.0, std)
-        ts_norm = (ts - mean) / std
-        cov_features = extract_cov_upper(ts_norm)
-        return np.concatenate([cov_features, timepoint_means])
+        ts_norm, _ = _zscore_per_timepoint(ts)
+        return extract_cov_upper(ts_norm)
+
+    elif condition == "Z-score per timepoint + means":
+        ts_norm, timepoint_means = _zscore_per_timepoint(ts)
+        return np.concatenate([extract_cov_upper(ts_norm), timepoint_means])
 
     elif condition == "Z-score both":
-        # Save the grand mean (1 value), then global z-score
-        grand_mean = np.array([ts.mean()], dtype=np.float32)  # (1,)
-        std = ts.std()
-        std = std if std > 1e-10 else 1.0
-        ts_norm = (ts - ts.mean()) / std
-        cov_features = extract_cov_upper(ts_norm)
-        return np.concatenate([cov_features, grand_mean])
+        ts_norm, _ = _zscore_global(ts)
+        return extract_cov_upper(ts_norm)
+
+    elif condition == "Z-score both + means":
+        ts_norm, grand_mean = _zscore_global(ts)
+        return np.concatenate([extract_cov_upper(ts_norm), grand_mean])
 
     else:
         raise ValueError(f"Unknown condition: {condition}")
@@ -144,8 +157,11 @@ def normalize_and_extract(ts: np.ndarray, condition: str) -> np.ndarray:
 CONDITIONS = [
     "No normalization",
     "Z-score per region",
+    "Z-score per region + means",
     "Z-score per timepoint",
+    "Z-score per timepoint + means",
     "Z-score both",
+    "Z-score both + means",
 ]
 
 
