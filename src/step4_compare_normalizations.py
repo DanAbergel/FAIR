@@ -124,20 +124,11 @@ def zscore_both(ts: np.ndarray) -> np.ndarray:
 # FEATURE EXTRACTION
 # =============================================================================
 
-def extract_cov(ts: np.ndarray) -> np.ndarray:
+def extract_cov_features(ts_norm: np.ndarray) -> np.ndarray:
     """Extract upper triangle of the covariance matrix."""
-    cov = np.cov(ts, rowvar=False)
+    cov = np.cov(ts_norm, rowvar=False)
     idx = np.triu_indices(cov.shape[0], k=1)
     return cov[idx].astype(np.float32)
-
-
-def extract_cov_and_means(ts: np.ndarray) -> np.ndarray:
-    """Extract upper triangle of covariance matrix + mean per region."""
-    cov = np.cov(ts, rowvar=False)
-    idx = np.triu_indices(cov.shape[0], k=1)
-    cov_features = cov[idx].astype(np.float32)
-    region_means = ts.mean(axis=0).astype(np.float32)
-    return np.concatenate([cov_features, region_means])
 
 
 # =============================================================================
@@ -151,10 +142,7 @@ NORMALIZATIONS = [
     {"name": "Z-score both", "fn": zscore_both},
 ]
 
-FEATURE_TYPES = [
-    {"name": "cov", "fn": extract_cov},
-    {"name": "cov + means", "fn": extract_cov_and_means},
-]
+FEATURE_TYPES = ["cov", "cov + means"]
 
 
 # =============================================================================
@@ -244,7 +232,7 @@ def evaluate_condition(
     subjects: list,
     y: np.ndarray,
     normalize_fn: Callable,
-    extract_fn: Callable,
+    feature_type: str,
     label_type: str,
     scoring: str,
 ) -> dict:
@@ -252,8 +240,18 @@ def evaluate_condition(
 
     X_list = []
     for subject_id, ts in subjects:
+        # Compute raw means BEFORE normalization
+        raw_means = ts.mean(axis=0).astype(np.float32)
+
+        # Normalize then extract covariance
         ts_norm = normalize_fn(ts)
-        features = extract_fn(ts_norm)
+        cov_features = extract_cov_features(ts_norm)
+
+        if feature_type == "cov + means":
+            features = np.concatenate([cov_features, raw_means])
+        else:
+            features = cov_features
+
         X_list.append(features)
 
     X = np.stack(X_list)
@@ -348,7 +346,7 @@ def main():
     print("=" * 70)
     print(f"\nAtlas resolutions: {SCHAEFER_REGIONS}")
     print(f"Normalizations: {len(NORMALIZATIONS)}")
-    print(f"Feature types: {[f['name'] for f in FEATURE_TYPES]}")
+    print(f"Feature types: {FEATURE_TYPES}")
     print(f"Labels: {list(LABELS.keys())}")
 
     all_results = []
@@ -378,18 +376,18 @@ def main():
 
             for norm in NORMALIZATIONS:
                 for feat in FEATURE_TYPES:
-                    condition = f"{norm['name']} | {feat['name']}"
+                    condition = f"{norm['name']} | {feat}"
                     print(f"    > {condition}")
 
                     result = evaluate_condition(
                         valid_subjects, y,
-                        norm["fn"], feat["fn"],
+                        norm["fn"], feat,
                         label_cfg["type"], label_cfg["scoring"],
                     )
 
                     result["n_regions"] = n_regions
                     result["normalization"] = norm["name"]
-                    result["features"] = feat["name"]
+                    result["features"] = feat
                     result["label"] = label_name
                     result["condition"] = condition
 
@@ -430,7 +428,7 @@ def main():
         "description": "Normalization axis x feature type x label comparison",
         "schaefer_regions": SCHAEFER_REGIONS,
         "normalizations": [n["name"] for n in NORMALIZATIONS],
-        "feature_types": [f["name"] for f in FEATURE_TYPES],
+        "feature_types": FEATURE_TYPES,
         "labels": list(LABELS.keys()),
         "results": [
             {
