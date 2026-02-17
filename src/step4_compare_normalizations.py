@@ -129,22 +129,13 @@ def normalize_and_extract(ts: np.ndarray, condition: str) -> np.ndarray:
         return np.concatenate([cov_features, timepoint_means])
 
     elif condition == "Z-score both":
-        # Save region means (R values) from step 1
-        region_means = ts.mean(axis=0).astype(np.float32)  # (R,)
-        mean_r = ts.mean(axis=0, keepdims=True)
-        std_r = ts.std(axis=0, keepdims=True)
-        std_r = np.where(std_r < 1e-10, 1.0, std_r)
-        ts_norm = (ts - mean_r) / std_r
-
-        # Save timepoint means (T values) from step 2 (after region z-score)
-        timepoint_means = ts_norm.mean(axis=1).astype(np.float32)  # (T,)
-        mean_t = ts_norm.mean(axis=1, keepdims=True)
-        std_t = ts_norm.std(axis=1, keepdims=True)
-        std_t = np.where(std_t < 1e-10, 1.0, std_t)
-        ts_norm = (ts_norm - mean_t) / std_t
-
+        # Save the grand mean (1 value), then global z-score
+        grand_mean = np.array([ts.mean()], dtype=np.float32)  # (1,)
+        std = ts.std()
+        std = std if std > 1e-10 else 1.0
+        ts_norm = (ts - ts.mean()) / std
         cov_features = extract_cov_upper(ts_norm)
-        return np.concatenate([cov_features, region_means, timepoint_means])
+        return np.concatenate([cov_features, grand_mean])
 
     else:
         raise ValueError(f"Unknown condition: {condition}")
