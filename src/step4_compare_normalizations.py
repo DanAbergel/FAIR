@@ -1,13 +1,18 @@
 """
-Step 4: Compare normalization axes and feature types across multiple labels
-===========================================================================
+Step 4: Compare normalization axes across multiple labels
+=========================================================
 
-Experiments:
-1. Normalization axis: none, per region, per timepoint, both
-2. Features: covariance only vs covariance + region means
-3. Labels: Sex, Age, BMI, BPDiastolic
+Each normalization removes certain means. We save those means and add them
+back as extra features alongside the covariance matrix.
 
-All connectivity features use covariance. The only variable is the z-score axis.
+Conditions:
+1. No normalization         -> cov only (nothing was removed)
+2. Z-score per region       -> cov + region means (R values)
+3. Z-score per timepoint    -> cov + timepoint means (T values)
+4. Z-score both             -> cov + region means + timepoint means (R+T values)
+
+Atlas: Schaefer 100, 200, 300
+Labels: Sex, Age, BMI, BPDiastolic, Education, Race
 
 Author: Dan Abergel
 Master's Thesis - Hebrew University of Jerusalem
@@ -31,7 +36,6 @@ from sklearn.model_selection import StratifiedKFold, KFold, cross_val_score
 # CONFIGURATION
 # =============================================================================
 HCP_ROOT = Path("/sci/labs/arieljaffe/dan.abergel1/HCP_data")
-LABELS_JSON = HCP_ROOT / "model_input" / "imageID_to_labels.json"
 CLEAN_SUBJECTS_JSON = HCP_ROOT / "subjects_clean.json"
 HCP_SUBJECTS_CSV = HCP_ROOT / "metadata" / "HCP_YA_subjects.csv"
 
@@ -40,7 +44,6 @@ SCHAEFER_REGIONS = [100, 200, 300]
 N_SPLITS = 5
 RANDOM_STATE = 42
 
-# Labels to evaluate
 LABELS = {
     "Sex": {
         "column": "Gender",
@@ -82,67 +85,77 @@ LABELS = {
 
 
 # =============================================================================
-# NORMALIZATION FUNCTIONS
+# NORMALIZATION + FEATURE EXTRACTION
 # =============================================================================
 
-def no_normalization(ts: np.ndarray) -> np.ndarray:
-    """No normalization - raw data."""
-    return ts
-
-
-def zscore_per_region(ts: np.ndarray) -> np.ndarray:
-    """
-    Z-score along time axis (axis=0), independently for each region.
-    Each region gets mean=0, std=1 across time.
-    Result: covariance of this = correlation matrix.
-    """
-    mean = ts.mean(axis=0, keepdims=True)
-    std = ts.std(axis=0, keepdims=True)
-    std = np.where(std < 1e-10, 1.0, std)
-    return (ts - mean) / std
-
-
-def zscore_per_timepoint(ts: np.ndarray) -> np.ndarray:
-    """
-    Z-score along region axis (axis=1), independently for each timepoint.
-    Each timepoint gets mean=0, std=1 across regions.
-    """
-    mean = ts.mean(axis=1, keepdims=True)
-    std = ts.std(axis=1, keepdims=True)
-    std = np.where(std < 1e-10, 1.0, std)
-    return (ts - mean) / std
-
-
-def zscore_both(ts: np.ndarray) -> np.ndarray:
-    """Z-score per region first, then per timepoint."""
-    ts = zscore_per_region(ts)
-    ts = zscore_per_timepoint(ts)
-    return ts
-
-
-# =============================================================================
-# FEATURE EXTRACTION
-# =============================================================================
-
-def extract_cov_features(ts_norm: np.ndarray) -> np.ndarray:
+def extract_cov_upper(ts: np.ndarray) -> np.ndarray:
     """Extract upper triangle of the covariance matrix."""
-    cov = np.cov(ts_norm, rowvar=False)
+    cov = np.cov(ts, rowvar=False)
     idx = np.triu_indices(cov.shape[0], k=1)
     return cov[idx].astype(np.float32)
 
 
-# =============================================================================
-# CONDITIONS
-# =============================================================================
+def normalize_and_extract(ts: np.ndarray, condition: str) -> np.ndarray:
+    """
+    Normalize time series and extract features.
+    The means removed during normalization are saved and appended as features.
 
-NORMALIZATIONS = [
-    {"name": "No normalization", "fn": no_normalization},
-    {"name": "Z-score per region", "fn": zscore_per_region},
-    {"name": "Z-score per timepoint", "fn": zscore_per_timepoint},
-    {"name": "Z-score both", "fn": zscore_both},
+    ts: (T, R) raw time series
+
+    Returns: feature vector
+    """
+    if condition == "No normalization":
+        # No normalization -> covariance only
+        return extract_cov_upper(ts)
+
+    elif condition == "Z-score per region":
+        # Save region means (R values), then z-score per region
+        region_means = ts.mean(axis=0).astype(np.float32)  # (R,)
+        mean = ts.mean(axis=0, keepdims=True)
+        std = ts.std(axis=0, keepdims=True)
+        std = np.where(std < 1e-10, 1.0, std)
+        ts_norm = (ts - mean) / std
+        cov_features = extract_cov_upper(ts_norm)
+        return np.concatenate([cov_features, region_means])
+
+    elif condition == "Z-score per timepoint":
+        # Save timepoint means (T values), then z-score per timepoint
+        timepoint_means = ts.mean(axis=1).astype(np.float32)  # (T,)
+        mean = ts.mean(axis=1, keepdims=True)
+        std = ts.std(axis=1, keepdims=True)
+        std = np.where(std < 1e-10, 1.0, std)
+        ts_norm = (ts - mean) / std
+        cov_features = extract_cov_upper(ts_norm)
+        return np.concatenate([cov_features, timepoint_means])
+
+    elif condition == "Z-score both":
+        # Save region means (R values) from step 1
+        region_means = ts.mean(axis=0).astype(np.float32)  # (R,)
+        mean_r = ts.mean(axis=0, keepdims=True)
+        std_r = ts.std(axis=0, keepdims=True)
+        std_r = np.where(std_r < 1e-10, 1.0, std_r)
+        ts_norm = (ts - mean_r) / std_r
+
+        # Save timepoint means (T values) from step 2 (after region z-score)
+        timepoint_means = ts_norm.mean(axis=1).astype(np.float32)  # (T,)
+        mean_t = ts_norm.mean(axis=1, keepdims=True)
+        std_t = ts_norm.std(axis=1, keepdims=True)
+        std_t = np.where(std_t < 1e-10, 1.0, std_t)
+        ts_norm = (ts_norm - mean_t) / std_t
+
+        cov_features = extract_cov_upper(ts_norm)
+        return np.concatenate([cov_features, region_means, timepoint_means])
+
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
+
+
+CONDITIONS = [
+    "No normalization",
+    "Z-score per region",
+    "Z-score per timepoint",
+    "Z-score both",
 ]
-
-FEATURE_TYPES = ["cov", "cov + means"]
 
 
 # =============================================================================
@@ -161,19 +174,11 @@ def load_subject(subject_id: str, n_regions: int) -> np.ndarray | None:
 
 
 def load_dataset(n_regions: int, verbose: bool = True):
-    """
-    Load clean subjects and all labels from HCP CSV.
-
-    Returns:
-        subjects: list of (subject_id, timeseries)
-        labels_df: DataFrame with columns for each label, indexed by subject_id
-    """
-    # Load HCP subject info
+    """Load clean subjects and all labels from HCP CSV."""
     hcp_df = pd.read_csv(HCP_SUBJECTS_CSV)
     hcp_df["Subject"] = hcp_df["Subject"].astype(str)
     hcp_df = hcp_df.set_index("Subject")
 
-    # Load clean subject list
     with open(CLEAN_SUBJECTS_JSON, "r") as f:
         clean_data = json.load(f)
     clean_ids = clean_data["subject_ids"]
@@ -198,13 +203,7 @@ def load_dataset(n_regions: int, verbose: bool = True):
 
 
 def get_label_array(labels_df: pd.DataFrame, label_name: str):
-    """
-    Extract and transform a label column, dropping NaN subjects.
-
-    Returns:
-        valid_indices: list of integer indices into subjects list
-        y: numpy array of label values
-    """
+    """Extract and transform a label column, dropping NaN subjects."""
     label_cfg = LABELS[label_name]
     col = label_cfg["column"]
 
@@ -231,8 +230,7 @@ def get_label_array(labels_df: pd.DataFrame, label_name: str):
 def evaluate_condition(
     subjects: list,
     y: np.ndarray,
-    normalize_fn: Callable,
-    feature_type: str,
+    condition: str,
     label_type: str,
     scoring: str,
 ) -> dict:
@@ -240,18 +238,7 @@ def evaluate_condition(
 
     X_list = []
     for subject_id, ts in subjects:
-        # Compute raw means BEFORE normalization
-        raw_means = ts.mean(axis=0).astype(np.float32)
-
-        # Normalize then extract covariance
-        ts_norm = normalize_fn(ts)
-        cov_features = extract_cov_features(ts_norm)
-
-        if feature_type == "cov + means":
-            features = np.concatenate([cov_features, raw_means])
-        else:
-            features = cov_features
-
+        features = normalize_and_extract(ts, condition)
         X_list.append(features)
 
     X = np.stack(X_list)
@@ -310,7 +297,7 @@ def plot_results(all_results: list, output_dir: Path):
             j = atlas_sizes.index(r["n_regions"])
             matrix[i, j] = r["mean"]
 
-        fig, ax = plt.subplots(figsize=(10, max(4, len(conditions) * 0.6 + 1)))
+        fig, ax = plt.subplots(figsize=(10, max(4, len(conditions) * 0.8 + 1)))
         im = ax.imshow(matrix, cmap='RdYlGn', aspect='auto',
                        vmin=matrix.min() - 0.02, vmax=matrix.max() + 0.02)
 
@@ -342,12 +329,12 @@ def plot_results(all_results: list, output_dir: Path):
 
 def main():
     print("=" * 70)
-    print("NORMALIZATION x FEATURES x LABELS COMPARISON")
+    print("NORMALIZATION x LABELS COMPARISON")
     print("=" * 70)
     print(f"\nAtlas resolutions: {SCHAEFER_REGIONS}")
-    print(f"Normalizations: {len(NORMALIZATIONS)}")
-    print(f"Feature types: {FEATURE_TYPES}")
+    print(f"Conditions: {CONDITIONS}")
     print(f"Labels: {list(LABELS.keys())}")
+    print(f"Total combinations: {len(SCHAEFER_REGIONS) * len(CONDITIONS) * len(LABELS)}")
 
     all_results = []
 
@@ -374,27 +361,24 @@ def main():
             valid_subjects = [subjects[i] for i in valid_idx]
             print(f"\n  --- {label_name} ({label_cfg['type']}, n={len(y)}) ---")
 
-            for norm in NORMALIZATIONS:
-                for feat in FEATURE_TYPES:
-                    condition = f"{norm['name']} | {feat}"
-                    print(f"    > {condition}")
+            for condition in CONDITIONS:
+                print(f"    > {condition}")
 
-                    result = evaluate_condition(
-                        valid_subjects, y,
-                        norm["fn"], feat,
-                        label_cfg["type"], label_cfg["scoring"],
-                    )
+                result = evaluate_condition(
+                    valid_subjects, y,
+                    condition,
+                    label_cfg["type"], label_cfg["scoring"],
+                )
 
-                    result["n_regions"] = n_regions
-                    result["normalization"] = norm["name"]
-                    result["features"] = feat
-                    result["label"] = label_name
-                    result["condition"] = condition
+                result["n_regions"] = n_regions
+                result["condition"] = condition
+                result["label"] = label_name
 
-                    all_results.append(result)
+                all_results.append(result)
 
-                    metric = label_cfg["scoring"].upper()
-                    print(f"      {metric}: {result['mean']:.3f} +/- {result['std']:.3f}")
+                metric = label_cfg["scoring"].upper()
+                print(f"      {metric}: {result['mean']:.3f} +/- {result['std']:.3f}"
+                      f"  ({result['n_features']} features)")
 
     # =========================================================================
     # SUMMARY
@@ -412,31 +396,28 @@ def main():
         results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=True)
 
         print(f"\n  {label_name} ({metric}):")
-        print(f"  {'Rank':<5} {'Atlas':<10} {'Condition':<40} {'Score':<15}")
-        print(f"  {'-'*70}")
+        print(f"  {'Rank':<5} {'Atlas':<10} {'Condition':<25} {'Score':<18} {'Features'}")
+        print(f"  {'-'*75}")
 
         for i, r in enumerate(results_sorted[:5]):
             score_str = f"{r['mean']:.3f} +/- {r['std']:.3f}"
             marker = ">>>" if i == 0 else "   "
-            print(f"  {marker}{i+1:<2} {r['n_regions']:<10} {r['condition']:<40} {score_str}")
+            print(f"  {marker}{i+1:<2} {r['n_regions']:<10} {r['condition']:<25} {score_str:<18} {r['n_features']}")
 
     # =========================================================================
     # SAVE
     # =========================================================================
-    output_path = HCP_ROOT / "normalization_features_labels_comparison.json"
+    output_path = HCP_ROOT / "normalization_labels_comparison.json"
     output_data = {
-        "description": "Normalization axis x feature type x label comparison",
+        "description": "Normalization with preserved means x labels comparison",
         "schaefer_regions": SCHAEFER_REGIONS,
-        "normalizations": [n["name"] for n in NORMALIZATIONS],
-        "feature_types": FEATURE_TYPES,
+        "conditions": CONDITIONS,
         "labels": list(LABELS.keys()),
         "results": [
             {
                 "n_regions": r["n_regions"],
-                "normalization": r["normalization"],
-                "features": r["features"],
-                "label": r["label"],
                 "condition": r["condition"],
+                "label": r["label"],
                 "mean": float(r["mean"]),
                 "std": float(r["std"]),
                 "fold_scores": r["scores"].tolist(),
