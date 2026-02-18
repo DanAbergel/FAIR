@@ -298,9 +298,9 @@ def plot_results(all_results: list, output_dir: Path):
         label_results = [r for r in all_results if r["label"] == label_name]
         label_cfg = LABELS[label_name]
         scoring = label_cfg["scoring"]
-        metric_name = "MAE" if "mae" in scoring else scoring.upper()
+        metric_name = "MAE" if LABELS[label_name]["type"] == "regression" else scoring.upper()
         # For MAE, lower is better -> reverse colormap
-        cmap = 'RdYlGn_r' if "mae" in scoring else 'RdYlGn'
+        cmap = 'RdYlGn_r' if LABELS[label_name]["type"] == "regression" else 'RdYlGn'
 
         atlas_sizes = sorted(set(r["n_regions"] for r in label_results))
         conditions = list(dict.fromkeys(r["condition"] for r in label_results))
@@ -390,7 +390,7 @@ def main():
 
                 all_results.append(result)
 
-                metric = "MAE" if "mae" in label_cfg["scoring"] else label_cfg["scoring"].upper()
+                metric = "MAE" if label_cfg["type"] == "regression" else label_cfg["scoring"].upper()
                 print(f"      {metric}: {result['mean']:.3f} +/- {result['std']:.3f}"
                       f"  ({result['n_features']} features)")
 
@@ -407,7 +407,7 @@ def main():
             continue
 
         scoring = LABELS[label_name]["scoring"]
-        metric = "MAE" if "mae" in scoring else scoring.upper()
+        metric = "MAE" if LABELS[label_name]["type"] == "regression" else scoring.upper()
         # For MAE, lower is better; for ROC-AUC, higher is better
         reverse = "mae" not in scoring
         results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=reverse)
