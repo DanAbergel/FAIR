@@ -375,6 +375,19 @@ def main():
             valid_subjects = [subjects[i] for i in valid_idx]
             print(f"\n  --- {label_name} ({label_cfg['type']}, n={len(y)}) ---")
 
+            # Print label statistics and dummy baseline
+            if label_cfg["type"] == "regression":
+                dummy_mae = np.mean(np.abs(y - np.mean(y)))
+                print(f"      Stats: mean={y.mean():.2f}, std={y.std():.2f}, "
+                      f"min={y.min():.2f}, max={y.max():.2f}")
+                print(f"      Dummy baseline (predict mean): MAE = {dummy_mae:.3f}")
+            else:
+                n_pos = y.sum()
+                n_neg = len(y) - n_pos
+                print(f"      Distribution: {int(n_pos)} vs {int(n_neg)} "
+                      f"({n_pos/len(y)*100:.1f}% / {n_neg/len(y)*100:.1f}%)")
+                print(f"      Dummy baseline (random): ROC-AUC = 0.500")
+
             for condition in CONDITIONS:
                 print(f"    > {condition}")
 
