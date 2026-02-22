@@ -152,6 +152,15 @@ def normalize_and_extract(ts: np.ndarray, condition: str) -> np.ndarray:
         ts_norm, grand_mean = _zscore_global(ts)
         return np.concatenate([extract_cov_upper(ts_norm), grand_mean])
 
+    elif condition == "Means only (per region)":
+        return ts.mean(axis=0).astype(np.float32)  # (R,)
+
+    elif condition == "Means only (per timepoint)":
+        return ts.mean(axis=1).astype(np.float32)  # (T,)
+
+    elif condition == "Means only (grand mean)":
+        return np.array([ts.mean()], dtype=np.float32)  # (1,)
+
     else:
         raise ValueError(f"Unknown condition: {condition}")
 
@@ -164,6 +173,9 @@ CONDITIONS = [
     "Z-score per timepoint + means",
     "Z-score both",
     "Z-score both + means",
+    "Means only (per region)",
+    "Means only (per timepoint)",
+    "Means only (grand mean)",
 ]
 
 
