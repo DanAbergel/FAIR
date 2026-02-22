@@ -377,16 +377,22 @@ def main():
 
             # Print label statistics and dummy baseline
             if label_cfg["type"] == "regression":
+                p25, p50, p75 = np.percentile(y, [25, 50, 75])
                 dummy_mae = np.mean(np.abs(y - np.mean(y)))
-                print(f"      Stats: mean={y.mean():.2f}, std={y.std():.2f}, "
-                      f"min={y.min():.2f}, max={y.max():.2f}")
-                print(f"      Dummy baseline (predict mean): MAE = {dummy_mae:.3f}")
+                print(f"      ┌─────────────────────────────────────────────┐")
+                print(f"      │  n={len(y):<6} mean={y.mean():<8.2f} std={y.std():<7.2f}  │")
+                print(f"      │  min={y.min():<7.2f} max={y.max():<8.2f}              │")
+                print(f"      │  P25={p25:<7.2f} P50={p50:<8.2f} P75={p75:<7.2f}  │")
+                print(f"      │  Dummy baseline (predict mean): MAE={dummy_mae:<6.2f} │")
+                print(f"      └─────────────────────────────────────────────┘")
             else:
-                n_pos = y.sum()
+                n_pos = int(y.sum())
                 n_neg = len(y) - n_pos
-                print(f"      Distribution: {int(n_pos)} vs {int(n_neg)} "
-                      f"({n_pos/len(y)*100:.1f}% / {n_neg/len(y)*100:.1f}%)")
-                print(f"      Dummy baseline (random): ROC-AUC = 0.500")
+                print(f"      ┌─────────────────────────────────────────────┐")
+                print(f"      │  n={len(y):<6} class 1: {n_pos} ({n_pos/len(y)*100:.1f}%)          │")
+                print(f"      │           class 0: {n_neg} ({n_neg/len(y)*100:.1f}%)          │")
+                print(f"      │  Dummy baseline (random): ROC-AUC = 0.500  │")
+                print(f"      └─────────────────────────────────────────────┘")
 
             for condition in CONDITIONS:
                 print(f"    > {condition}")
