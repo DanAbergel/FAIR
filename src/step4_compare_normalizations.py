@@ -50,6 +50,7 @@ LABELS = {
         "type": "classification",
         "transform": lambda x: 1 if x == "M" else 0,
         "scoring": "roc_auc",
+        "class_names": {1: "Male", 0: "Female"},
     },
     "Age": {
         "column": "Age_in_Yrs",
@@ -80,6 +81,7 @@ LABELS = {
         "type": "classification",
         "transform": lambda x: 1 if x == "White" else 0,
         "scoring": "roc_auc",
+        "class_names": {1: "White", 0: "Non-White"},
     },
 }
 
@@ -388,11 +390,21 @@ def main():
             else:
                 n_pos = int(y.sum())
                 n_neg = len(y) - n_pos
-                print(f"      ┌─────────────────────────────────────────────┐")
-                print(f"      │  n={len(y):<6} class 1: {n_pos} ({n_pos/len(y)*100:.1f}%)          │")
-                print(f"      │           class 0: {n_neg} ({n_neg/len(y)*100:.1f}%)          │")
-                print(f"      │  Dummy baseline (random): ROC-AUC = 0.500  │")
-                print(f"      └─────────────────────────────────────────────┘")
+                class_names = label_cfg.get("class_names", {1: "class 1", 0: "class 0"})
+                name_1 = class_names[1]
+                name_0 = class_names[0]
+                # Show original distribution for Race
+                raw_col = labels_df[label_cfg["column"]].dropna()
+                print(f"      ┌──────────────────────────────────────────────────┐")
+                print(f"      │  n={len(y)}")
+                print(f"      │  {name_1}: {n_pos} ({n_pos/len(y)*100:.1f}%)")
+                print(f"      │  {name_0}: {n_neg} ({n_neg/len(y)*100:.1f}%)")
+                if raw_col.nunique() > 2:
+                    print(f"      │  Original categories:")
+                    for cat, count in raw_col.value_counts().items():
+                        print(f"      │    {cat}: {count} ({count/len(raw_col)*100:.1f}%)")
+                print(f"      │  Dummy baseline (random): ROC-AUC = 0.500")
+                print(f"      └──────────────────────────────────────────────────┘")
 
             for condition in CONDITIONS:
                 print(f"    > {condition}")
