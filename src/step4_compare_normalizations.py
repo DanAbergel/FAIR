@@ -422,8 +422,8 @@ def main():
         scoring = LABELS[label_name]["scoring"]
         metric = "MAE" if LABELS[label_name]["type"] == "regression" else scoring.upper()
         # For MAE, lower is better; for ROC-AUC, higher is better
-        reverse = "mae" not in scoring
-        results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=reverse)
+        lower_is_better = LABELS[label_name]["type"] == "regression"
+        results_sorted = sorted(label_results, key=lambda x: x["mean"], reverse=not lower_is_better)
 
         print(f"\n  {label_name} ({metric}):")
         print(f"  {'Rank':<5} {'Atlas':<10} {'Condition':<25} {'Score':<18} {'Features'}")
