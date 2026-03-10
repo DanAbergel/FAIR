@@ -1,48 +1,90 @@
 #!/bin/bash
-#SBATCH --job-name=step5_mlp
-#SBATCH --output=logs/step5_mlp_%j.out
-#SBATCH --error=logs/step5_mlp_%j.err
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:1
+# =====================================================================
+# SLURM Job Script — Step 5: MLP Deep Learning Baseline
+# =====================================================================
+#
+# HOW TO USE:
+#   sbatch jobs/run_step5.sh
+#
+# MONITOR:
+#   squeue -u $USER
+#   tail -f logs/step5_mlp_<JOB_ID>.out
+#   scancel <JOB_ID>
+#
+# FIRST TIME SETUP (run once on login node):
+#   python3 -m venv /sci/labs/arieljaffe/dan.abergel1/fair_env
+#   source /sci/labs/arieljaffe/dan.abergel1/fair_env/bin/activate
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   pip install numpy pandas scikit-learn matplotlib seaborn tqdm
+# =====================================================================
+
+# ── SLURM resource request ─────────────────────────────────────────
+#SBATCH --job-name=step5-mlp
+#SBATCH --gres=gpu:l40s:1        # 1x NVIDIA L40S (48 GB VRAM)
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=dan.abergel1@mail.huji.ac.il
+#SBATCH --output=logs/step5_mlp_%j.out
+#SBATCH --error=logs/step5_mlp_%j.err
 
-echo "============================================"
-echo "Job ID:        $SLURM_JOB_ID"
-echo "Job Name:      $SLURM_JOB_NAME"
-echo "Node:          $SLURMD_NODENAME"
-echo "Partition:     $SLURM_JOB_PARTITION"
-echo "GPUs:          $SLURM_GPUS_ON_NODE"
-echo "CPUs:          $SLURM_CPUS_PER_TASK"
-echo "Memory:        $SLURM_MEM_PER_NODE MB"
-echo "Start time:    $(date)"
-echo "Working dir:   $(pwd)"
-echo "============================================"
+set -euo pipefail
 
-# Load modules (adjust if Moriah uses different module names)
-module load cuda
-module load anaconda3
+# ── Paths ───────────────────────────────────────────────────────────
+LAB_DIR="/sci/labs/arieljaffe/dan.abergel1"
+PROJECT_DIR="$LAB_DIR/FAIR"
+VENV_DIR="$LAB_DIR/fair_env"
 
-# Activate environment — adjust to your conda env or venv path
-# Option A: conda
-# conda activate fair
+# ── Redirect caches to lab storage (home quota ~5 GB) ──────────────
+export TMPDIR="$LAB_DIR/tmp"
+export PIP_CACHE_DIR="$LAB_DIR/cache/pip"
+export XDG_CACHE_HOME="$LAB_DIR/cache"
+mkdir -p "$TMPDIR" "$PIP_CACHE_DIR"
 
-# Option B: venv on cluster
-source /sci/labs/arieljaffe/dan.abergel1/fair_venv/bin/activate
+echo "============================================================"
+echo "  Step 5: MLP Deep Learning Baseline — SLURM Job"
+echo "============================================================"
+echo "  Job ID:     $SLURM_JOB_ID"
+echo "  Node:       $(hostname)"
+echo "  Date:       $(date)"
+echo "  Project:    $PROJECT_DIR"
+echo "  Venv:       $VENV_DIR"
+echo "============================================================"
+echo ""
 
-# Verify GPU is visible
-python -c "import torch; print(f'PyTorch {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU: {torch.cuda.get_device_name(0)}' if torch.cuda.is_available() else 'CPU only')"
+# ── 1. Activate virtual environment ────────────────────────────────
+echo "[1/4] Activating venv ..."
+source "$VENV_DIR/bin/activate"
+echo "  Python: $(which python3)"
+echo "  Version: $(python3 --version)"
+echo ""
 
-echo "============================================"
-echo "Starting step5_mlp.py"
-echo "============================================"
+# ── 2. Update code from GitHub ─────────────────────────────────────
+echo "[2/4] Updating code ..."
+cd "$PROJECT_DIR"
+git fetch --all
+git reset --hard origin/main
+echo "  Commit: $(git rev-parse --short HEAD)"
+echo "  Message: $(git log -1 --pretty=%s)"
+echo ""
 
-cd /sci/labs/arieljaffe/dan.abergel1/FAIR
-python src/step5_mlp.py
+# ── 3. GPU check ───────────────────────────────────────────────────
+echo "[3/4] GPU check ..."
+python3 -c "
+import torch
+print(f'  CUDA available: {torch.cuda.is_available()}')
+print(f'  GPU: {torch.cuda.get_device_name(0)}')
+props = torch.cuda.get_device_properties(0)
+print(f'  VRAM: {props.total_memory / 1e9:.1f} GB')
+"
+echo ""
 
-echo "============================================"
-echo "Finished at: $(date)"
-echo "============================================"
+# ── 4. Run step5 ───────────────────────────────────────────────────
+echo "[4/4] Starting step5_mlp.py ..."
+mkdir -p "$PROJECT_DIR/logs"
+
+python3 -u "$PROJECT_DIR/src/step5_mlp.py"
+
+echo ""
+echo "============================================================"
+echo "  Job finished: $(date)"
+echo "============================================================"
