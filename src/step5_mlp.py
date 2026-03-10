@@ -2,11 +2,14 @@
 Step 5: MLP Deep Learning baseline
 ===================================
 
-Non-linear baseline using a 3-layer MLP (PyTorch).
-Uses the best preprocessing from step4: Z-score per region + region means.
+Non-linear baseline using a multi-layer MLP (PyTorch).
+Compares 4 feature extraction strategies from Schaefer atlas:
+  1. Raw time series  — flattened T x R values
+  2. Means only       — R region means
+  3. Cov only         — upper triangle of covariance matrix
+  4. Cov + means      — upper triangle + region means
 
-Grid: 2 atlases (S200, S300) x 3 activations (ReLU, GELU, LeakyReLU)
-       x 3 architectures (shallow/medium/deep)
+Grid: 2 atlases (S200, S300) x 4 feature sets x 3 architectures x 3 activations
        x 6 labels (Sex, Age, BMI, BPDiastolic, Education, Race)
 
 Same 5-fold CV as step4 for fair comparison.
@@ -43,6 +46,14 @@ SCHAEFER_REGIONS = [200, 300]
 
 N_SPLITS = 5
 RANDOM_STATE = 42
+
+# Feature conditions to compare
+FEATURE_CONDITIONS = [
+    "Raw time series",
+    "Means only",
+    "Cov only",
+    "Cov + means",
+]
 
 # MLP hyperparameters
 ARCHITECTURES = {
@@ -100,7 +111,7 @@ LABELS = {
     },
 }
 
-# Step4 best baselines (Z-score per region + means)
+# Step4 best baselines (Z-score per region + means, linear model)
 STEP4_BASELINES = {
     "Sex": {"metric": "ROC-AUC", "best": 0.908, "atlas": "S200"},
     "Age": {"metric": "MAE", "best": 3.129, "atlas": "S300"},
@@ -114,24 +125,46 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # =============================================================================
-# NORMALIZATION + FEATURE EXTRACTION
+# FEATURE EXTRACTION
 # =============================================================================
 
-def extract_cov_upper(ts: np.ndarray) -> np.ndarray:
-    """Extract upper triangle of the covariance matrix."""
-    cov = np.cov(ts, rowvar=False)
-    idx = np.triu_indices(cov.shape[0], k=1)
-    return cov[idx].astype(np.float32)
-
-
-def normalize_and_extract(ts: np.ndarray) -> np.ndarray:
-    """Z-score per region + region means (best condition from step4)."""
-    region_means = ts.mean(axis=0).astype(np.float32)
+def _extract_cov_upper(ts: np.ndarray) -> np.ndarray:
+    """Upper triangle of covariance matrix (z-scored per region first)."""
     mean = ts.mean(axis=0, keepdims=True)
     std = ts.std(axis=0, keepdims=True)
     std = np.where(std < 1e-10, 1.0, std)
     ts_norm = (ts - mean) / std
-    return np.concatenate([extract_cov_upper(ts_norm), region_means])
+    cov = np.cov(ts_norm, rowvar=False)
+    idx = np.triu_indices(cov.shape[0], k=1)
+    return cov[idx].astype(np.float32)
+
+
+def _region_means(ts: np.ndarray) -> np.ndarray:
+    """Mean activation per region."""
+    return ts.mean(axis=0).astype(np.float32)
+
+
+def extract_features(ts: np.ndarray, condition: str) -> np.ndarray:
+    """
+    Extract features from a (T, R) time series according to a condition.
+
+    Conditions
+    ----------
+    Raw time series : flatten the T x R matrix              -> T*R features
+    Means only      : mean activation per region             -> R features
+    Cov only        : upper triangle of covariance (z-scored)-> R*(R-1)/2
+    Cov + means     : cov upper triangle + region means      -> R*(R-1)/2 + R
+    """
+    if condition == "Raw time series":
+        return ts.flatten().astype(np.float32)
+    elif condition == "Means only":
+        return _region_means(ts)
+    elif condition == "Cov only":
+        return _extract_cov_upper(ts)
+    elif condition == "Cov + means":
+        return np.concatenate([_extract_cov_upper(ts), _region_means(ts)])
+    else:
+        raise ValueError(f"Unknown condition: {condition}")
 
 
 # =============================================================================
@@ -347,6 +380,8 @@ def train_one_fold(
 
     return {
         "score": score,
+        "preds": preds,
+        "targets": targets,
         "best_epoch": epoch - patience_counter + 1,
         "total_epochs": epoch + 1,
     }
@@ -374,6 +409,8 @@ def evaluate_model(
 
     fold_scores = []
     fold_epochs = []
+    # Out-of-fold predictions (each subject predicted once, on its val fold)
+    oof_preds = np.zeros(len(y), dtype=np.float32)
 
     for fold, (train_idx, val_idx) in enumerate(cv.split(X, y)):
         X_train, X_val = X[train_idx], X[val_idx]
@@ -385,6 +422,7 @@ def evaluate_model(
         )
         fold_scores.append(result["score"])
         fold_epochs.append(result["total_epochs"])
+        oof_preds[val_idx] = result["preds"]
 
     scores = np.array(fold_scores)
     return {
@@ -392,6 +430,8 @@ def evaluate_model(
         "mean": scores.mean(),
         "std": scores.std(),
         "avg_epochs": np.mean(fold_epochs),
+        "oof_preds": oof_preds,
+        "y_true": y,
     }
 
 
@@ -399,8 +439,134 @@ def evaluate_model(
 # VISUALIZATION
 # =============================================================================
 
+def plot_predictions(all_results: list, output_dir: Path):
+    """For each label, find the best config and plot true vs predicted.
+
+    Regression: scatter plot with identity line, R, R², MAE.
+    Classification: ROC curve + predicted probability histograms per class.
+    """
+    from sklearn.metrics import roc_curve, auc
+
+    labels_in_results = list(dict.fromkeys(r["label"] for r in all_results))
+
+    for label_name in labels_in_results:
+        label_results = [r for r in all_results if r["label"] == label_name]
+        label_type = LABELS[label_name]["type"]
+        lower_is_better = label_type == "regression"
+
+        if lower_is_better:
+            best = min(label_results, key=lambda r: r["mean"])
+        else:
+            best = max(label_results, key=lambda r: r["mean"])
+
+        y_true = best["y_true"]
+        oof_preds = best["oof_preds"]
+        config_str = (f"S{best['n_regions']} / {best['condition']} / "
+                      f"{best['arch']} / {best['activation']}")
+        baseline = STEP4_BASELINES[label_name]
+
+        if label_type == "regression":
+            y_pred = oof_preds
+
+            # Stats computed on ALL subjects
+            r_corr = np.corrcoef(y_true, y_pred)[0, 1]
+            r2 = r_corr ** 2
+            mae = mean_absolute_error(y_true, y_pred)
+
+            # For the plot: pick one random subject per unique label value
+            # to avoid overlapping points (e.g. many subjects aged 28)
+            rng = np.random.RandomState(RANDOM_STATE)
+            unique_vals = np.unique(y_true)
+            plot_idx = []
+            for val in unique_vals:
+                candidates = np.where(y_true == val)[0]
+                plot_idx.append(rng.choice(candidates))
+            plot_idx = np.array(plot_idx)
+            y_true_plot = y_true[plot_idx]
+            y_pred_plot = y_pred[plot_idx]
+
+            fig, ax = plt.subplots(figsize=(7, 7))
+            ax.scatter(y_true_plot, y_pred_plot, alpha=0.6, s=30,
+                       edgecolors="none", c="#4C72B0")
+
+            # Identity line
+            lo = min(y_true.min(), y_pred.min())
+            hi = max(y_true.max(), y_pred.max())
+            margin = (hi - lo) * 0.05
+            ax.plot([lo - margin, hi + margin], [lo - margin, hi + margin],
+                    "k--", linewidth=1, label="Perfect prediction")
+            ax.set_xlim(lo - margin, hi + margin)
+            ax.set_ylim(lo - margin, hi + margin)
+
+            ax.set_xlabel("True value", fontsize=12)
+            ax.set_ylabel("Predicted value", fontsize=12)
+            ax.set_title(f"{label_name} — True vs Predicted (out-of-fold)\n"
+                         f"{config_str}", fontsize=11, fontweight="bold")
+
+            stats_text = (f"MAE = {mae:.3f}\n"
+                          f"r = {r_corr:.3f}\n"
+                          f"R² = {r2:.3f}\n"
+                          f"n = {len(y_true)} subjects"
+                          f" ({len(unique_vals)} shown)\n"
+                          f"Step4 MAE = {baseline['best']:.3f}")
+            ax.text(0.05, 0.95, stats_text, transform=ax.transAxes,
+                    fontsize=10, verticalalignment="top",
+                    bbox=dict(boxstyle="round,pad=0.4", facecolor="wheat",
+                              alpha=0.8))
+            ax.legend(loc="lower right")
+            ax.set_aspect("equal")
+            plt.tight_layout()
+
+        else:
+            # Classification: ROC curve + probability histogram
+            probs = 1.0 / (1.0 + np.exp(-oof_preds))
+            fpr, tpr, _ = roc_curve(y_true, probs)
+            roc_auc = auc(fpr, tpr)
+            class_names = LABELS[label_name].get(
+                "class_names", {1: "class 1", 0: "class 0"})
+
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5.5))
+
+            # ROC curve
+            ax1.plot(fpr, tpr, color="#4C72B0", linewidth=2,
+                     label=f"MLP (AUC = {roc_auc:.3f})")
+            ax1.plot([0, 1], [0, 1], "k--", linewidth=1, label="Random")
+            ax1.set_xlabel("False Positive Rate", fontsize=12)
+            ax1.set_ylabel("True Positive Rate", fontsize=12)
+            ax1.set_title("ROC Curve", fontsize=12, fontweight="bold")
+            ax1.legend(loc="lower right", fontsize=10)
+            ax1.set_aspect("equal")
+
+            # Probability histogram per class
+            mask_pos = y_true == 1
+            ax2.hist(probs[mask_pos], bins=30, alpha=0.6, color="#4C72B0",
+                     label=f"{class_names[1]} (n={mask_pos.sum()})",
+                     density=True)
+            ax2.hist(probs[~mask_pos], bins=30, alpha=0.6, color="#DD8452",
+                     label=f"{class_names[0]} (n={(~mask_pos).sum()})",
+                     density=True)
+            ax2.set_xlabel("Predicted probability", fontsize=12)
+            ax2.set_ylabel("Density", fontsize=12)
+            ax2.set_title("Predicted probabilities by class",
+                          fontsize=12, fontweight="bold")
+            ax2.legend(fontsize=10)
+
+            fig.suptitle(f"{label_name} — {config_str}",
+                         fontsize=11, fontweight="bold", y=1.02)
+            plt.tight_layout()
+
+        path = output_dir / f"mlp_pred_{label_name.lower()}.png"
+        fig.savefig(path, dpi=150, bbox_inches="tight")
+        print(f"    Saved: {path}")
+        plt.close(fig)
+
+
 def plot_results(all_results: list, output_dir: Path):
-    """Generate one heatmap per label (arch x activation rows, atlas columns)."""
+    """One heatmap per label: rows = (condition / arch), cols = atlas.
+
+    Shows the best activation for each (condition, arch, atlas) combo
+    since activations showed minimal impact in earlier runs.
+    """
 
     labels_in_results = list(dict.fromkeys(r["label"] for r in all_results))
 
@@ -408,53 +574,73 @@ def plot_results(all_results: list, output_dir: Path):
         label_results = [r for r in all_results if r["label"] == label_name]
         label_type = LABELS[label_name]["type"]
         metric_name = "MAE" if label_type == "regression" else "ROC-AUC"
-        cmap = "RdYlGn_r" if label_type == "regression" else "RdYlGn"
+        lower_is_better = label_type == "regression"
+        cmap = "RdYlGn_r" if lower_is_better else "RdYlGn"
 
         atlas_sizes = sorted(set(r["n_regions"] for r in label_results))
+        cond_names = list(dict.fromkeys(r["condition"] for r in label_results))
         arch_names = list(dict.fromkeys(r["arch"] for r in label_results))
-        act_names = list(dict.fromkeys(r["activation"] for r in label_results))
 
-        # Rows: (arch, activation) combos
+        # Rows: (condition, arch) — pick best activation per combo
         row_labels = []
-        for arch in arch_names:
-            for act in act_names:
-                row_labels.append(f"{arch} / {act}")
+        for cond in cond_names:
+            for arch in arch_names:
+                row_labels.append(f"{cond}  |  {arch}")
 
-        matrix = np.zeros((len(row_labels), len(atlas_sizes)))
-        for r in label_results:
-            row_key = f"{r['arch']} / {r['activation']}"
-            i = row_labels.index(row_key)
-            j = atlas_sizes.index(r["n_regions"])
-            matrix[i, j] = r["mean"]
+        matrix = np.full((len(row_labels), len(atlas_sizes)), np.nan)
+        for i, (cond, arch) in enumerate(
+            (c, a) for c in cond_names for a in arch_names
+        ):
+            for j, atlas in enumerate(atlas_sizes):
+                matches = [
+                    r for r in label_results
+                    if r["condition"] == cond
+                    and r["arch"] == arch
+                    and r["n_regions"] == atlas
+                ]
+                if matches:
+                    if lower_is_better:
+                        best = min(matches, key=lambda r: r["mean"])
+                    else:
+                        best = max(matches, key=lambda r: r["mean"])
+                    matrix[i, j] = best["mean"]
 
-        fig, ax = plt.subplots(figsize=(8, max(4, len(row_labels) * 0.5 + 1)))
+        fig, ax = plt.subplots(figsize=(8, max(5, len(row_labels) * 0.45 + 2)))
         im = ax.imshow(matrix, cmap=cmap, aspect="auto",
-                       vmin=matrix.min() - 0.02, vmax=matrix.max() + 0.02)
+                       vmin=np.nanmin(matrix) - 0.02,
+                       vmax=np.nanmax(matrix) + 0.02)
 
         ax.set_xticks(range(len(atlas_sizes)))
         ax.set_xticklabels([f"Schaefer {n}" for n in atlas_sizes])
         ax.set_yticks(range(len(row_labels)))
-        ax.set_yticklabels(row_labels, fontsize=8)
+        ax.set_yticklabels(row_labels, fontsize=7)
+
+        # Horizontal lines between feature conditions
+        n_arch = len(arch_names)
+        for k in range(1, len(cond_names)):
+            ax.axhline(y=k * n_arch - 0.5, color="black", linewidth=1.5)
 
         for i in range(len(row_labels)):
             for j in range(len(atlas_sizes)):
                 val = matrix[i, j]
-                color = "white" if val < matrix.mean() else "black"
+                if np.isnan(val):
+                    continue
+                color = "white" if val < np.nanmean(matrix) else "black"
                 ax.text(j, i, f"{val:.3f}", ha="center", va="center",
-                        color=color, fontsize=9, fontweight="bold")
+                        color=color, fontsize=8, fontweight="bold")
 
         baseline = STEP4_BASELINES[label_name]
         ax.set_title(
-            f"{label_name} — MLP ({metric_name})\n"
-            f"Step4 best: {baseline['best']:.3f} ({baseline['atlas']})",
-            fontsize=12, fontweight="bold",
+            f"{label_name} — MLP best per (features, arch) — {metric_name}\n"
+            f"Step4 linear baseline: {baseline['best']:.3f} ({baseline['atlas']})",
+            fontsize=11, fontweight="bold",
         )
         plt.colorbar(im, ax=ax, label=metric_name)
         plt.tight_layout()
 
         path = output_dir / f"mlp_{label_name.lower()}.png"
         fig.savefig(path, dpi=150, bbox_inches="tight")
-        print(f"  Saved: {path}")
+        print(f"    Saved: {path}")
         plt.close(fig)
 
 
@@ -471,24 +657,27 @@ def main():
     print("=" * 70)
     print("STEP 5: MLP DEEP LEARNING BASELINE")
     print("=" * 70)
-    print(f"Device: {DEVICE}")
-    print(f"Atlas resolutions: {SCHAEFER_REGIONS}")
-    print(f"Architectures: {list(ARCHITECTURES.keys())}")
-    print(f"Activations: {list(ACTIVATIONS.keys())}")
-    print(f"Labels: {list(LABELS.keys())}")
-    print(f"Dropout: {DROPOUT}, LR: {LR}, Batch: {BATCH_SIZE}")
-    print(f"Early stopping patience: {EARLY_STOP_PATIENCE}")
-    n_combos = (len(SCHAEFER_REGIONS) * len(ARCHITECTURES)
-                * len(ACTIVATIONS) * len(LABELS))
-    print(f"Total combinations: {n_combos}")
+    print(f"  Device           : {DEVICE}")
+    print(f"  Atlases          : {SCHAEFER_REGIONS}")
+    print(f"  Feature sets     : {FEATURE_CONDITIONS}")
+    print(f"  Architectures    : {list(ARCHITECTURES.keys())}")
+    print(f"  Activations      : {list(ACTIVATIONS.keys())}")
+    print(f"  Labels           : {list(LABELS.keys())}")
+    print(f"  Dropout={DROPOUT}  LR={LR}  Batch={BATCH_SIZE}"
+          f"  EarlyStop={EARLY_STOP_PATIENCE}")
+    n_combos = (len(SCHAEFER_REGIONS) * len(FEATURE_CONDITIONS)
+                * len(ARCHITECTURES) * len(ACTIVATIONS) * len(LABELS))
+    print(f"  Total combinations: {n_combos}")
+    print("=" * 70)
 
     all_results = []
     start_time = time.time()
+    labels_printed = set()  # print label stats only once
 
     for n_regions in SCHAEFER_REGIONS:
-        print(f"\n{'='*70}")
-        print(f"SCHAEFER {n_regions} REGIONS")
-        print(f"{'='*70}")
+        print(f"\n{'#'*70}")
+        print(f"#  SCHAEFER {n_regions} REGIONS")
+        print(f"{'#'*70}")
 
         subjects, labels_df = load_dataset(n_regions, verbose=True)
 
@@ -496,75 +685,118 @@ def main():
             print(f"  No subjects found for Schaefer {n_regions}")
             continue
 
-        print(f"Subjects loaded: {len(subjects)}")
+        n_subjects = len(subjects)
+        ts_shape = subjects[0][1].shape  # (T, R)
+        print(f"  Subjects loaded: {n_subjects}")
+        print(f"  Time series shape per subject: {ts_shape}")
 
-        # Pre-extract features for this atlas (shared across all configs)
-        print("Extracting features (Z-score per region + means)...")
-        X_all = np.stack([
-            normalize_and_extract(ts) for _, ts in
-            tqdm(subjects, desc="Features")
-        ])
-        n_bad = np.isnan(X_all).sum() + np.isinf(X_all).sum()
-        if n_bad > 0:
-            print(f"  WARNING: {n_bad} NaN/Inf values - replacing with 0")
-            X_all = np.nan_to_num(X_all, nan=0.0, posinf=0.0, neginf=0.0)
-        print(f"Feature matrix: {X_all.shape}")
+        for condition in FEATURE_CONDITIONS:
+            # ----- Extract features for this condition -----
+            print(f"\n  ╔{'═'*60}╗")
+            print(f"  ║  Feature set: {condition:<45}║")
 
-        for label_name, label_cfg in LABELS.items():
-            valid_idx, y = get_label_array(labels_df, label_name)
+            X_all = np.stack([
+                extract_features(ts, condition) for _, ts in
+                tqdm(subjects, desc=f"  {condition}", leave=False)
+            ])
 
-            if len(y) < 50:
-                print(f"\n  Skipping {label_name}: only {len(y)} valid subjects")
-                continue
+            n_bad = np.isnan(X_all).sum() + np.isinf(X_all).sum()
+            if n_bad > 0:
+                print(f"  ║  WARNING: {n_bad} NaN/Inf -> replaced with 0"
+                      f"{' '*(28-len(str(n_bad)))}║")
+                X_all = np.nan_to_num(X_all, nan=0.0, posinf=0.0, neginf=0.0)
 
-            X = X_all[valid_idx]
-            label_type = label_cfg["type"]
-            metric_name = "MAE" if label_type == "regression" else "ROC-AUC"
-            baseline = STEP4_BASELINES[label_name]
+            n_features = X_all.shape[1]
+            mem_mb = X_all.nbytes / 1e6
+            print(f"  ║  Dimensions: {n_subjects} subjects x"
+                  f" {n_features:,} features ({mem_mb:.0f} MB)  ║")
+            print(f"  ╚{'═'*60}╝")
 
-            print(f"\n  --- {label_name} ({label_type}, n={len(y)}) ---")
-            print(f"      Step4 baseline: {baseline['best']:.3f} {baseline['metric']}"
-                  f" ({baseline['atlas']})")
+            if n_features > 100_000:
+                print(f"  ⚠  Large feature space — training will be slow")
 
-            for arch_name, hidden_dims in ARCHITECTURES.items():
-                print(f"    [{arch_name}]")
-                for act_name in ACTIVATIONS:
-                    t0 = time.time()
-                    result = evaluate_model(X, y, label_type, act_name,
-                                            hidden_dims)
-                    elapsed = time.time() - t0
+            for label_name, label_cfg in LABELS.items():
+                valid_idx, y = get_label_array(labels_df, label_name)
 
-                    result["n_regions"] = n_regions
-                    result["arch"] = arch_name
-                    result["activation"] = act_name
-                    result["label"] = label_name
-                    result["n_features"] = X.shape[1]
-                    all_results.append(result)
+                if len(y) < 50:
+                    print(f"\n    Skipping {label_name}: only {len(y)} valid")
+                    continue
 
-                    # Compare with step4
-                    diff = result["mean"] - baseline["best"]
+                X = X_all[valid_idx]
+                label_type = label_cfg["type"]
+                metric_name = "MAE" if label_type == "regression" else "ROC-AUC"
+                baseline = STEP4_BASELINES[label_name]
+
+                print(f"\n    --- {label_name} ({label_type}, n={len(y)})"
+                      f"  |  Step4: {baseline['best']:.3f} {baseline['metric']}"
+                      f" ({baseline['atlas']}) ---")
+
+                # Print label distribution once (first time we see this label)
+                if label_name not in labels_printed:
+                    labels_printed.add(label_name)
                     if label_type == "regression":
-                        better = diff < 0
+                        p50, p75, p90, p95 = np.percentile(y, [50, 75, 90, 95])
+                        dummy_mae = np.mean(np.abs(y - np.mean(y)))
+                        print(f"        Label distribution:")
+                        print(f"          mean={y.mean():.2f}  std={y.std():.2f}"
+                              f"  min={y.min():.2f}  max={y.max():.2f}")
+                        print(f"          P50={p50:.2f}  P75={p75:.2f}"
+                              f"  P90={p90:.2f}  P95={p95:.2f}")
+                        print(f"          Dummy baseline (predict mean): MAE={dummy_mae:.2f}")
+                        print(f"          Interpretation: MAE={baseline['best']:.2f}"
+                              f" means avg error is ~{baseline['best']/y.std():.1%} of 1 std")
                     else:
-                        better = diff > 0
-                    marker = "^" if better else "v"
+                        n_pos = int(y.sum())
+                        n_neg = len(y) - n_pos
+                        class_names = label_cfg.get("class_names",
+                                                    {1: "class 1", 0: "class 0"})
+                        print(f"        Label distribution:")
+                        print(f"          {class_names[1]}: {n_pos}"
+                              f" ({n_pos/len(y)*100:.1f}%)  |"
+                              f"  {class_names[0]}: {n_neg}"
+                              f" ({n_neg/len(y)*100:.1f}%)")
+                        print(f"          Dummy baseline (random): ROC-AUC=0.500")
 
-                    print(f"      {act_name:<12} {metric_name}:"
-                          f" {result['mean']:.3f} +/- {result['std']:.3f}"
-                          f"  [{diff:+.3f} {marker}]"
-                          f"  (avg {result['avg_epochs']:.0f} epochs,"
-                          f" {elapsed:.0f}s)")
+                for arch_name, hidden_dims in ARCHITECTURES.items():
+                    print(f"      [{arch_name}]")
+                    for act_name in ACTIVATIONS:
+                        t0 = time.time()
+                        result = evaluate_model(X, y, label_type, act_name,
+                                                hidden_dims)
+                        elapsed = time.time() - t0
+
+                        result["n_regions"] = n_regions
+                        result["condition"] = condition
+                        result["arch"] = arch_name
+                        result["activation"] = act_name
+                        result["label"] = label_name
+                        result["n_features"] = n_features
+                        all_results.append(result)
+
+                        diff = result["mean"] - baseline["best"]
+                        if label_type == "regression":
+                            better = diff < 0
+                        else:
+                            better = diff > 0
+                        flag = "+" if better else "-"
+
+                        print(f"        {act_name:<12} {metric_name}:"
+                              f" {result['mean']:.3f} +/- {result['std']:.3f}"
+                              f"  [{diff:+.3f} {flag}]"
+                              f"  ({result['avg_epochs']:.0f}ep, {elapsed:.0f}s)")
+
+            # Free memory before next condition
+            del X_all
 
     total_time = time.time() - start_time
-    print(f"\n{'='*70}")
-    print(f"Total training time: {total_time/60:.1f} min")
 
     # =========================================================================
     # SUMMARY
     # =========================================================================
-    print(f"\n{'='*70}")
-    print("RESULTS SUMMARY — MLP vs Step4 Linear Baselines")
-    print(f"{'='*70}")
+    print(f"\n{'='*90}")
+    print(f"  RESULTS SUMMARY — MLP vs Step4 Linear Baselines")
+    print(f"  Total training time: {total_time/60:.1f} min")
+    print(f"{'='*90}")
 
     for label_name in LABELS:
         label_results = [r for r in all_results if r["label"] == label_name]
@@ -580,30 +812,73 @@ def main():
 
         print(f"\n  {label_name} ({metric_name})"
               f"  |  Step4 best: {baseline['best']:.3f} ({baseline['atlas']})")
-        print(f"  {'Rank':<5} {'Atlas':<6} {'Architecture':<22}"
+        print(f"  {'#':<4} {'Atlas':<6} {'Features':<18} {'Architecture':<22}"
               f" {'Activation':<12} {'Score':<18} {'vs Step4'}")
-        print(f"  {'-'*85}")
+        print(f"  {'-'*95}")
 
-        for i, r in enumerate(results_sorted):
+        for i, r in enumerate(results_sorted[:15]):
             score_str = f"{r['mean']:.3f} +/- {r['std']:.3f}"
             diff = r["mean"] - baseline["best"]
             if lower_is_better:
                 better = diff < 0
             else:
                 better = diff > 0
-            marker = ">>>" if i == 0 else "   "
-            flag = "^" if better else "v"
-            print(f"  {marker}{i+1:<2} S{r['n_regions']:<5}"
-                  f" {r['arch']:<22} {r['activation']:<12}"
-                  f" {score_str:<18} {diff:+.3f} {flag}")
+            rank = f">>>{i+1}" if i == 0 else f"   {i+1}"
+            flag = "+" if better else "-"
+            print(f"  {rank:<4} S{r['n_regions']:<5}"
+                  f" {r['condition']:<18} {r['arch']:<22}"
+                  f" {r['activation']:<12} {score_str:<18} {diff:+.3f} {flag}")
+
+        if len(results_sorted) > 15:
+            print(f"  ... ({len(results_sorted) - 15} more rows)")
+
+    # =========================================================================
+    # BEST PER FEATURE CONDITION (concise comparison table)
+    # =========================================================================
+    print(f"\n{'='*90}")
+    print(f"  BEST SCORE PER FEATURE CONDITION (across arch/activation/atlas)")
+    print(f"{'='*90}")
+    print(f"  {'Label':<14} {'Condition':<18} {'Score':<18}"
+          f" {'Config':<35} {'vs Step4'}")
+    print(f"  {'-'*90}")
+
+    for label_name in LABELS:
+        label_results = [r for r in all_results if r["label"] == label_name]
+        if not label_results:
+            continue
+        label_type = LABELS[label_name]["type"]
+        lower_is_better = label_type == "regression"
+        baseline = STEP4_BASELINES[label_name]
+
+        for condition in FEATURE_CONDITIONS:
+            cond_results = [r for r in label_results
+                            if r["condition"] == condition]
+            if not cond_results:
+                continue
+            if lower_is_better:
+                best = min(cond_results, key=lambda r: r["mean"])
+            else:
+                best = max(cond_results, key=lambda r: r["mean"])
+
+            diff = best["mean"] - baseline["best"]
+            if lower_is_better:
+                better = diff < 0
+            else:
+                better = diff > 0
+            flag = "+" if better else "-"
+            config = f"S{best['n_regions']} {best['arch']} {best['activation']}"
+
+            print(f"  {label_name:<14} {condition:<18}"
+                  f" {best['mean']:.3f} +/- {best['std']:.3f}  "
+                  f" {config:<35} {diff:+.3f} {flag}")
 
     # =========================================================================
     # SAVE JSON
     # =========================================================================
     output_path = HCP_ROOT / "mlp_results.json"
     output_data = {
-        "description": "Step 5 - MLP deep learning baseline",
-        "preprocessing": "Z-score per region + region means",
+        "description": "Step 5 - MLP baseline with feature condition comparison",
+        "feature_conditions": FEATURE_CONDITIONS,
         "architectures": {k: v for k, v in ARCHITECTURES.items()},
         "hyperparameters": {
             "dropout": DROPOUT,
@@ -623,6 +898,7 @@ def main():
         "results": [
             {
                 "n_regions": r["n_regions"],
+                "condition": r["condition"],
                 "arch": r["arch"],
                 "activation": r["activation"],
                 "label": r["label"],
@@ -638,15 +914,18 @@ def main():
 
     with open(output_path, "w") as f:
         json.dump(output_data, f, indent=2)
-    print(f"\nResults saved: {output_path}")
+    print(f"\n  Results saved: {output_path}")
 
     # =========================================================================
     # PLOTS
     # =========================================================================
-    print("\nGenerating plots...")
+    print("\n  Generating heatmaps...")
     plot_results(all_results, HCP_ROOT)
 
-    print("\nDone.")
+    print("\n  Generating true vs predicted plots (best config per label)...")
+    plot_predictions(all_results, HCP_ROOT)
+
+    print(f"\n  Done. Total time: {total_time/60:.1f} min")
 
 
 if __name__ == "__main__":
