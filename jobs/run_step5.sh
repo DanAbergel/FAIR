@@ -32,7 +32,7 @@ set -euo pipefail
 # ── Paths ───────────────────────────────────────────────────────────
 LAB_DIR="/sci/labs/arieljaffe/dan.abergel1"
 PROJECT_DIR="$LAB_DIR/FAIR"
-VENV_DIR="$LAB_DIR/fair_env"
+VENV_DIR="$LAB_DIR/torch_env"
 
 # ── Redirect caches to lab storage (home quota ~5 GB) ──────────────
 export TMPDIR="$LAB_DIR/tmp"
