@@ -1,0 +1,968 @@
+============================================================
+  Step 5: MLP Deep Learning Baseline — SLURM Job
+============================================================
+  Job ID:     44235905
+  Node:       salmon-10
+  Date:       Tue Mar 10 21:44:30 IST 2026
+  Project:    /sci/labs/arieljaffe/dan.abergel1/repos/FAIR
+  Venv:       /sci/labs/arieljaffe/dan.abergel1/torch_env
+============================================================
+
+[1/4] Activating venv ...
+  Python: /sci/labs/arieljaffe/dan.abergel1/torch_env/bin/python3
+  Version: Python 3.11.2
+
+[2/4] Updating code ...
+HEAD is now at 9bfdb86 Fix PROJECT_DIR path: repos/FAIR
+  Commit: 9bfdb86
+  Message: Fix PROJECT_DIR path: repos/FAIR
+
+[3/4] GPU check ...
+  CUDA available: True
+  GPU: NVIDIA L40S
+  VRAM: 47.7 GB
+
+[4/4] Starting step5_mlp.py ...
+======================================================================
+STEP 5: MLP DEEP LEARNING BASELINE
+======================================================================
+  Device           : cuda
+  Atlases          : [200, 300]
+  Feature sets     : ['Raw time series', 'Means only', 'Cov only', 'Cov + means']
+  Architectures    : ['Shallow [256]', 'Medium [512,256]', 'Deep [512,256,128]']
+  Activations      : ['ReLU', 'GELU', 'LeakyReLU']
+  Labels           : ['Sex', 'Age', 'BMI', 'BPDiastolic', 'Education', 'Race']
+  Dropout=0.3  LR=0.001  Batch=64  EarlyStop=20
+  Total combinations: 432
+======================================================================
+
+######################################################################
+#  SCHAEFER 200 REGIONS
+######################################################################
+  Subjects loaded: 945
+  Time series shape per subject: (1200, 200)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Raw time series                              ║
+  ║  Dimensions: 945 subjects x 240,000 features (907 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+  ⚠  Large feature space — training will be slow
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+        Label distribution:
+          Male: 433 (45.8%)  |  Female: 512 (54.2%)
+          Dummy baseline (random): ROC-AUC=0.500
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.969 +/- 0.009  [+0.061 +]  (51ep, 65s)
+        GELU         ROC-AUC: 0.969 +/- 0.013  [+0.061 +]  (54ep, 58s)
+        LeakyReLU    ROC-AUC: 0.966 +/- 0.013  [+0.058 +]  (49ep, 53s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.967 +/- 0.015  [+0.059 +]  (37ep, 64s)
+        GELU         ROC-AUC: 0.963 +/- 0.013  [+0.055 +]  (31ep, 54s)
+        LeakyReLU    ROC-AUC: 0.965 +/- 0.013  [+0.057 +]  (41ep, 69s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.966 +/- 0.010  [+0.058 +]  (33ep, 58s)
+        GELU         ROC-AUC: 0.963 +/- 0.010  [+0.055 +]  (33ep, 57s)
+        LeakyReLU    ROC-AUC: 0.965 +/- 0.015  [+0.057 +]  (38ep, 65s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+        Label distribution:
+          mean=28.72  std=3.72  min=22.00  max=37.00
+          P50=29.00  P75=32.00  P90=34.00  P95=35.00
+          Dummy baseline (predict mean): MAE=3.16
+          Interpretation: MAE=3.13 means avg error is ~84.1% of 1 std
+      [Shallow [256]]
+        ReLU         MAE: 4.344 +/- 0.263  [+1.215 -]  (96ep, 99s)
+        GELU         MAE: 4.810 +/- 0.302  [+1.681 -]  (96ep, 98s)
+        LeakyReLU    MAE: 4.243 +/- 0.254  [+1.114 -]  (119ep, 120s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.295 +/- 0.091  [+0.166 -]  (62ep, 107s)
+        GELU         MAE: 3.339 +/- 0.108  [+0.210 -]  (62ep, 108s)
+        LeakyReLU    MAE: 3.312 +/- 0.062  [+0.183 -]  (61ep, 105s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.150 +/- 0.113  [+0.021 -]  (85ep, 145s)
+        GELU         MAE: 3.209 +/- 0.109  [+0.080 -]  (84ep, 144s)
+        LeakyReLU    MAE: 3.108 +/- 0.125  [-0.021 +]  (90ep, 152s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+        Label distribution:
+          mean=26.51  std=5.21  min=16.48  max=47.76
+          P50=25.42  P75=29.37  P90=33.88  P95=36.96
+          Dummy baseline (predict mean): MAE=4.08
+          Interpretation: MAE=3.53 means avg error is ~67.7% of 1 std
+      [Shallow [256]]
+        ReLU         MAE: 4.559 +/- 0.277  [+1.027 -]  (88ep, 91s)
+        GELU         MAE: 5.112 +/- 0.360  [+1.580 -]  (95ep, 97s)
+        LeakyReLU    MAE: 4.581 +/- 0.334  [+1.049 -]  (88ep, 91s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.650 +/- 0.213  [+0.118 -]  (64ep, 109s)
+        GELU         MAE: 3.809 +/- 0.191  [+0.277 -]  (58ep, 100s)
+        LeakyReLU    MAE: 3.668 +/- 0.156  [+0.136 -]  (62ep, 106s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.516 +/- 0.150  [-0.016 +]  (79ep, 135s)
+        GELU         MAE: 3.654 +/- 0.150  [+0.122 -]  (82ep, 141s)
+        LeakyReLU    MAE: 3.606 +/- 0.170  [+0.074 -]  (83ep, 142s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+        Label distribution:
+          mean=76.46  std=10.63  min=38.00  max=113.00
+          P50=76.00  P75=83.00  P90=90.00  P95=95.00
+          Dummy baseline (predict mean): MAE=8.37
+          Interpretation: MAE=9.25 means avg error is ~87.1% of 1 std
+      [Shallow [256]]
+        ReLU         MAE: 11.282 +/- 0.315  [+2.029 -]  (86ep, 92s)
+        GELU         MAE: 12.200 +/- 0.495  [+2.947 -]  (107ep, 111s)
+        LeakyReLU    MAE: 11.050 +/- 0.225  [+1.797 -]  (102ep, 106s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.575 +/- 0.369  [+0.322 -]  (98ep, 165s)
+        GELU         MAE: 9.593 +/- 0.376  [+0.340 -]  (101ep, 170s)
+        LeakyReLU    MAE: 9.506 +/- 0.366  [+0.253 -]  (85ep, 146s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 9.082 +/- 0.168  [-0.171 +]  (117ep, 196s)
+        GELU         MAE: 9.112 +/- 0.232  [-0.141 +]  (121ep, 204s)
+        LeakyReLU    MAE: 9.092 +/- 0.261  [-0.161 +]  (110ep, 187s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+        Label distribution:
+          mean=14.94  std=1.79  min=11.00  max=17.00
+          P50=16.00  P75=16.00  P90=17.00  P95=17.00
+          Dummy baseline (predict mean): MAE=1.55
+          Interpretation: MAE=1.56 means avg error is ~87.2% of 1 std
+      [Shallow [256]]
+        ReLU         MAE: 2.462 +/- 0.014  [+0.903 -]  (90ep, 93s)
+        GELU         MAE: 2.833 +/- 0.072  [+1.274 -]  (106ep, 107s)
+        LeakyReLU    MAE: 2.451 +/- 0.042  [+0.892 -]  (110ep, 110s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.630 +/- 0.049  [+0.071 -]  (64ep, 107s)
+        GELU         MAE: 1.674 +/- 0.081  [+0.115 -]  (55ep, 94s)
+        LeakyReLU    MAE: 1.653 +/- 0.064  [+0.094 -]  (46ep, 80s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.627 +/- 0.052  [+0.068 -]  (80ep, 135s)
+        GELU         MAE: 1.611 +/- 0.086  [+0.052 -]  (72ep, 124s)
+        LeakyReLU    MAE: 1.588 +/- 0.050  [+0.029 -]  (76ep, 129s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+        Label distribution:
+          White: 698 (73.9%)  |  Non-White: 247 (26.1%)
+          Dummy baseline (random): ROC-AUC=0.500
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.801 +/- 0.015  [+0.048 +]  (44ep, 49s)
+        GELU         ROC-AUC: 0.791 +/- 0.027  [+0.038 +]  (41ep, 46s)
+        LeakyReLU    ROC-AUC: 0.801 +/- 0.015  [+0.048 +]  (46ep, 51s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.777 +/- 0.032  [+0.024 +]  (31ep, 54s)
+        GELU         ROC-AUC: 0.754 +/- 0.045  [+0.001 +]  (28ep, 50s)
+        LeakyReLU    ROC-AUC: 0.758 +/- 0.032  [+0.005 +]  (30ep, 54s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.765 +/- 0.032  [+0.012 +]  (31ep, 54s)
+        GELU         ROC-AUC: 0.734 +/- 0.057  [-0.019 -]  (30ep, 53s)
+        LeakyReLU    ROC-AUC: 0.748 +/- 0.050  [-0.005 -]  (30ep, 53s)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Means only                                   ║
+  ║  Dimensions: 945 subjects x 200 features (1 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.967 +/- 0.014  [+0.059 +]  (33ep, 2s)
+        GELU         ROC-AUC: 0.969 +/- 0.010  [+0.061 +]  (35ep, 2s)
+        LeakyReLU    ROC-AUC: 0.968 +/- 0.012  [+0.060 +]  (36ep, 2s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.970 +/- 0.012  [+0.062 +]  (30ep, 2s)
+        GELU         ROC-AUC: 0.963 +/- 0.013  [+0.055 +]  (25ep, 2s)
+        LeakyReLU    ROC-AUC: 0.969 +/- 0.010  [+0.061 +]  (28ep, 2s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.965 +/- 0.013  [+0.057 +]  (28ep, 2s)
+        GELU         ROC-AUC: 0.964 +/- 0.013  [+0.056 +]  (27ep, 2s)
+        LeakyReLU    ROC-AUC: 0.967 +/- 0.011  [+0.059 +]  (27ep, 2s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 3.944 +/- 0.210  [+0.815 -]  (94ep, 5s)
+        GELU         MAE: 4.508 +/- 0.146  [+1.379 -]  (64ep, 4s)
+        LeakyReLU    MAE: 3.957 +/- 0.228  [+0.828 -]  (71ep, 4s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.361 +/- 0.078  [+0.232 -]  (78ep, 5s)
+        GELU         MAE: 3.352 +/- 0.076  [+0.223 -]  (80ep, 6s)
+        LeakyReLU    MAE: 3.343 +/- 0.068  [+0.214 -]  (76ep, 5s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.144 +/- 0.092  [+0.015 -]  (91ep, 7s)
+        GELU         MAE: 3.223 +/- 0.097  [+0.094 -]  (92ep, 7s)
+        LeakyReLU    MAE: 3.152 +/- 0.077  [+0.023 -]  (89ep, 7s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 4.286 +/- 0.206  [+0.754 -]  (57ep, 3s)
+        GELU         MAE: 4.750 +/- 0.211  [+1.218 -]  (75ep, 4s)
+        LeakyReLU    MAE: 4.293 +/- 0.197  [+0.761 -]  (56ep, 3s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.732 +/- 0.130  [+0.200 -]  (63ep, 4s)
+        GELU         MAE: 3.754 +/- 0.110  [+0.222 -]  (63ep, 4s)
+        LeakyReLU    MAE: 3.675 +/- 0.154  [+0.143 -]  (70ep, 5s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.518 +/- 0.135  [-0.014 +]  (78ep, 6s)
+        GELU         MAE: 3.595 +/- 0.133  [+0.063 -]  (77ep, 6s)
+        LeakyReLU    MAE: 3.562 +/- 0.235  [+0.030 -]  (83ep, 7s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 10.593 +/- 0.111  [+1.340 -]  (97ep, 6s)
+        GELU         MAE: 11.443 +/- 0.358  [+2.190 -]  (100ep, 6s)
+        LeakyReLU    MAE: 10.473 +/- 0.289  [+1.220 -]  (88ep, 5s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.456 +/- 0.311  [+0.203 -]  (95ep, 7s)
+        GELU         MAE: 9.827 +/- 0.306  [+0.574 -]  (94ep, 7s)
+        LeakyReLU    MAE: 9.544 +/- 0.260  [+0.291 -]  (89ep, 6s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 9.170 +/- 0.128  [-0.083 +]  (115ep, 9s)
+        GELU         MAE: 9.176 +/- 0.177  [-0.077 +]  (108ep, 9s)
+        LeakyReLU    MAE: 9.208 +/- 0.208  [-0.045 +]  (116ep, 9s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 2.259 +/- 0.057  [+0.700 -]  (72ep, 4s)
+        GELU         MAE: 2.622 +/- 0.033  [+1.063 -]  (61ep, 3s)
+        LeakyReLU    MAE: 2.220 +/- 0.052  [+0.661 -]  (62ep, 4s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.724 +/- 0.086  [+0.165 -]  (72ep, 5s)
+        GELU         MAE: 1.726 +/- 0.075  [+0.167 -]  (86ep, 6s)
+        LeakyReLU    MAE: 1.697 +/- 0.039  [+0.138 -]  (70ep, 5s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.573 +/- 0.088  [+0.014 -]  (91ep, 7s)
+        GELU         MAE: 1.589 +/- 0.061  [+0.030 -]  (76ep, 6s)
+        LeakyReLU    MAE: 1.577 +/- 0.064  [+0.018 -]  (85ep, 7s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.798 +/- 0.018  [+0.045 +]  (31ep, 2s)
+        GELU         ROC-AUC: 0.787 +/- 0.026  [+0.034 +]  (29ep, 2s)
+        LeakyReLU    ROC-AUC: 0.786 +/- 0.025  [+0.033 +]  (30ep, 2s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.778 +/- 0.022  [+0.025 +]  (25ep, 2s)
+        GELU         ROC-AUC: 0.788 +/- 0.012  [+0.035 +]  (25ep, 2s)
+        LeakyReLU    ROC-AUC: 0.775 +/- 0.021  [+0.022 +]  (25ep, 2s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.766 +/- 0.027  [+0.013 +]  (25ep, 2s)
+        GELU         ROC-AUC: 0.775 +/- 0.024  [+0.022 +]  (25ep, 2s)
+        LeakyReLU    ROC-AUC: 0.770 +/- 0.036  [+0.017 +]  (25ep, 2s)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Cov only                                     ║
+  ║  Dimensions: 945 subjects x 19,900 features (75 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.876 +/- 0.027  [-0.032 -]  (28ep, 3s)
+        GELU         ROC-AUC: 0.873 +/- 0.022  [-0.035 -]  (28ep, 3s)
+        LeakyReLU    ROC-AUC: 0.880 +/- 0.028  [-0.028 -]  (29ep, 3s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.883 +/- 0.021  [-0.025 -]  (25ep, 4s)
+        GELU         ROC-AUC: 0.883 +/- 0.019  [-0.025 -]  (25ep, 4s)
+        LeakyReLU    ROC-AUC: 0.881 +/- 0.019  [-0.027 -]  (27ep, 4s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.865 +/- 0.023  [-0.043 -]  (25ep, 4s)
+        GELU         ROC-AUC: 0.881 +/- 0.019  [-0.027 -]  (26ep, 4s)
+        LeakyReLU    ROC-AUC: 0.874 +/- 0.021  [-0.034 -]  (24ep, 4s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 5.696 +/- 0.471  [+2.567 -]  (157ep, 15s)
+        GELU         MAE: 6.476 +/- 0.410  [+3.347 -]  (150ep, 15s)
+        LeakyReLU    MAE: 5.815 +/- 0.451  [+2.686 -]  (138ep, 14s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.547 +/- 0.139  [+0.418 -]  (118ep, 16s)
+        GELU         MAE: 3.489 +/- 0.106  [+0.360 -]  (79ep, 11s)
+        LeakyReLU    MAE: 3.532 +/- 0.064  [+0.403 -]  (108ep, 15s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.172 +/- 0.058  [+0.043 -]  (92ep, 14s)
+        GELU         MAE: 3.152 +/- 0.083  [+0.023 -]  (79ep, 12s)
+        LeakyReLU    MAE: 3.163 +/- 0.024  [+0.034 -]  (90ep, 14s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 5.886 +/- 0.366  [+2.354 -]  (140ep, 14s)
+        GELU         MAE: 6.609 +/- 0.422  [+3.077 -]  (147ep, 15s)
+        LeakyReLU    MAE: 6.015 +/- 0.447  [+2.483 -]  (137ep, 14s)
+      [Medium [512,256]]
+        ReLU         MAE: 4.131 +/- 0.136  [+0.599 -]  (105ep, 14s)
+        GELU         MAE: 4.071 +/- 0.111  [+0.539 -]  (83ep, 11s)
+        LeakyReLU    MAE: 4.094 +/- 0.122  [+0.562 -]  (96ep, 13s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.505 +/- 0.106  [-0.027 +]  (82ep, 12s)
+        GELU         MAE: 3.593 +/- 0.131  [+0.061 -]  (80ep, 12s)
+        LeakyReLU    MAE: 3.534 +/- 0.144  [+0.002 -]  (90ep, 14s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 14.146 +/- 0.500  [+4.893 -]  (184ep, 18s)
+        GELU         MAE: 15.592 +/- 0.431  [+6.339 -]  (197ep, 20s)
+        LeakyReLU    MAE: 14.041 +/- 0.407  [+4.788 -]  (196ep, 20s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.542 +/- 0.774  [+0.289 -]  (144ep, 20s)
+        GELU         MAE: 9.558 +/- 0.412  [+0.305 -]  (113ep, 16s)
+        LeakyReLU    MAE: 9.558 +/- 0.699  [+0.305 -]  (142ep, 19s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 9.033 +/- 0.616  [-0.220 +]  (110ep, 17s)
+        GELU         MAE: 8.870 +/- 0.428  [-0.383 +]  (107ep, 16s)
+        LeakyReLU    MAE: 8.881 +/- 0.377  [-0.372 +]  (120ep, 18s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 3.084 +/- 0.094  [+1.525 -]  (138ep, 14s)
+        GELU         MAE: 3.502 +/- 0.239  [+1.943 -]  (145ep, 14s)
+        LeakyReLU    MAE: 2.996 +/- 0.074  [+1.437 -]  (143ep, 14s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.792 +/- 0.118  [+0.233 -]  (83ep, 11s)
+        GELU         MAE: 1.773 +/- 0.106  [+0.214 -]  (67ep, 9s)
+        LeakyReLU    MAE: 1.829 +/- 0.116  [+0.270 -]  (75ep, 10s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.584 +/- 0.054  [+0.025 -]  (85ep, 13s)
+        GELU         MAE: 1.562 +/- 0.044  [+0.003 -]  (93ep, 13s)
+        LeakyReLU    MAE: 1.582 +/- 0.043  [+0.023 -]  (87ep, 13s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.708 +/- 0.046  [-0.045 -]  (25ep, 3s)
+        GELU         ROC-AUC: 0.716 +/- 0.050  [-0.037 -]  (25ep, 3s)
+        LeakyReLU    ROC-AUC: 0.727 +/- 0.040  [-0.026 -]  (25ep, 3s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.716 +/- 0.059  [-0.037 -]  (23ep, 3s)
+        GELU         ROC-AUC: 0.724 +/- 0.059  [-0.029 -]  (23ep, 3s)
+        LeakyReLU    ROC-AUC: 0.715 +/- 0.052  [-0.038 -]  (23ep, 3s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.694 +/- 0.074  [-0.059 -]  (24ep, 4s)
+        GELU         ROC-AUC: 0.685 +/- 0.065  [-0.068 -]  (23ep, 4s)
+        LeakyReLU    ROC-AUC: 0.717 +/- 0.063  [-0.036 -]  (24ep, 4s)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Cov + means                                  ║
+  ║  Dimensions: 945 subjects x 20,100 features (76 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.907 +/- 0.022  [-0.001 -]  (31ep, 4s)
+        GELU         ROC-AUC: 0.905 +/- 0.019  [-0.003 -]  (31ep, 4s)
+        LeakyReLU    ROC-AUC: 0.907 +/- 0.024  [-0.001 -]  (31ep, 4s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.898 +/- 0.026  [-0.010 -]  (25ep, 4s)
+        GELU         ROC-AUC: 0.905 +/- 0.018  [-0.003 -]  (26ep, 4s)
+        LeakyReLU    ROC-AUC: 0.899 +/- 0.023  [-0.009 -]  (26ep, 4s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.902 +/- 0.012  [-0.006 -]  (26ep, 4s)
+        GELU         ROC-AUC: 0.906 +/- 0.013  [-0.002 -]  (27ep, 4s)
+        LeakyReLU    ROC-AUC: 0.897 +/- 0.021  [-0.011 -]  (25ep, 4s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 5.875 +/- 0.501  [+2.746 -]  (123ep, 13s)
+        GELU         MAE: 6.470 +/- 0.409  [+3.341 -]  (147ep, 15s)
+        LeakyReLU    MAE: 5.462 +/- 0.526  [+2.333 -]  (168ep, 17s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.554 +/- 0.111  [+0.425 -]  (107ep, 15s)
+        GELU         MAE: 3.459 +/- 0.097  [+0.330 -]  (82ep, 12s)
+        LeakyReLU    MAE: 3.573 +/- 0.144  [+0.444 -]  (104ep, 14s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.154 +/- 0.068  [+0.025 -]  (88ep, 13s)
+        GELU         MAE: 3.143 +/- 0.068  [+0.014 -]  (92ep, 14s)
+        LeakyReLU    MAE: 3.121 +/- 0.087  [-0.008 +]  (96ep, 14s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 5.824 +/- 0.295  [+2.292 -]  (129ep, 13s)
+        GELU         MAE: 6.563 +/- 0.394  [+3.031 -]  (135ep, 13s)
+        LeakyReLU    MAE: 5.954 +/- 0.409  [+2.422 -]  (153ep, 15s)
+      [Medium [512,256]]
+        ReLU         MAE: 4.084 +/- 0.082  [+0.552 -]  (118ep, 16s)
+        GELU         MAE: 4.098 +/- 0.128  [+0.566 -]  (83ep, 11s)
+        LeakyReLU    MAE: 4.052 +/- 0.107  [+0.520 -]  (112ep, 15s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.449 +/- 0.117  [-0.083 +]  (81ep, 12s)
+        GELU         MAE: 3.531 +/- 0.164  [-0.001 +]  (80ep, 12s)
+        LeakyReLU    MAE: 3.528 +/- 0.200  [-0.004 +]  (83ep, 13s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 14.321 +/- 0.570  [+5.068 -]  (169ep, 17s)
+        GELU         MAE: 15.825 +/- 0.447  [+6.572 -]  (197ep, 19s)
+        LeakyReLU    MAE: 14.078 +/- 0.528  [+4.825 -]  (193ep, 19s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.629 +/- 0.717  [+0.376 -]  (139ep, 20s)
+        GELU         MAE: 9.513 +/- 0.337  [+0.260 -]  (100ep, 14s)
+        LeakyReLU    MAE: 9.834 +/- 0.951  [+0.581 -]  (143ep, 20s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 9.049 +/- 0.604  [-0.204 +]  (120ep, 18s)
+        GELU         MAE: 8.643 +/- 0.256  [-0.610 +]  (116ep, 17s)
+        LeakyReLU    MAE: 9.094 +/- 0.427  [-0.159 +]  (107ep, 16s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 2.988 +/- 0.177  [+1.429 -]  (150ep, 15s)
+        GELU         MAE: 3.421 +/- 0.188  [+1.862 -]  (154ep, 15s)
+        LeakyReLU    MAE: 3.041 +/- 0.127  [+1.482 -]  (123ep, 12s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.819 +/- 0.102  [+0.260 -]  (72ep, 10s)
+        GELU         MAE: 1.778 +/- 0.091  [+0.219 -]  (72ep, 10s)
+        LeakyReLU    MAE: 1.820 +/- 0.102  [+0.261 -]  (62ep, 9s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.576 +/- 0.050  [+0.017 -]  (78ep, 12s)
+        GELU         MAE: 1.568 +/- 0.029  [+0.009 -]  (80ep, 12s)
+        LeakyReLU    MAE: 1.570 +/- 0.056  [+0.011 -]  (81ep, 12s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.739 +/- 0.040  [-0.014 -]  (25ep, 3s)
+        GELU         ROC-AUC: 0.747 +/- 0.040  [-0.006 -]  (28ep, 3s)
+        LeakyReLU    ROC-AUC: 0.729 +/- 0.046  [-0.024 -]  (25ep, 3s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.731 +/- 0.056  [-0.022 -]  (24ep, 3s)
+        GELU         ROC-AUC: 0.707 +/- 0.064  [-0.046 -]  (23ep, 3s)
+        LeakyReLU    ROC-AUC: 0.740 +/- 0.046  [-0.013 -]  (24ep, 3s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.720 +/- 0.080  [-0.033 -]  (24ep, 4s)
+        GELU         ROC-AUC: 0.739 +/- 0.070  [-0.014 -]  (24ep, 4s)
+        LeakyReLU    ROC-AUC: 0.719 +/- 0.066  [-0.034 -]  (23ep, 4s)
+
+######################################################################
+#  SCHAEFER 300 REGIONS
+######################################################################
+  Subjects loaded: 945
+  Time series shape per subject: (1200, 300)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Raw time series                              ║
+  ║  Dimensions: 945 subjects x 360,000 features (1361 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+  ⚠  Large feature space — training will be slow
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.971 +/- 0.013  [+0.063 +]  (49ep, 79s)
+        GELU         ROC-AUC: 0.971 +/- 0.013  [+0.063 +]  (52ep, 83s)
+        LeakyReLU    ROC-AUC: 0.973 +/- 0.012  [+0.065 +]  (52ep, 82s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.971 +/- 0.010  [+0.063 +]  (37ep, 96s)
+        GELU         ROC-AUC: 0.974 +/- 0.009  [+0.066 +]  (34ep, 87s)
+        LeakyReLU    ROC-AUC: 0.971 +/- 0.012  [+0.063 +]  (38ep, 97s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.971 +/- 0.011  [+0.063 +]  (40ep, 102s)
+        GELU         ROC-AUC: 0.969 +/- 0.011  [+0.061 +]  (34ep, 88s)
+        LeakyReLU    ROC-AUC: 0.968 +/- 0.013  [+0.060 +]  (38ep, 97s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 4.387 +/- 0.288  [+1.258 -]  (108ep, 160s)
+        GELU         MAE: 5.075 +/- 0.414  [+1.946 -]  (79ep, 122s)
+        LeakyReLU    MAE: 4.395 +/- 0.319  [+1.266 -]  (77ep, 119s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.198 +/- 0.139  [+0.069 -]  (61ep, 155s)
+        GELU         MAE: 3.262 +/- 0.025  [+0.133 -]  (81ep, 199s)
+        LeakyReLU    MAE: 3.268 +/- 0.113  [+0.139 -]  (67ep, 168s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.019 +/- 0.078  [-0.110 +]  (100ep, 247s)
+        GELU         MAE: 3.101 +/- 0.111  [-0.028 +]  (91ep, 229s)
+        LeakyReLU    MAE: 3.056 +/- 0.127  [-0.073 +]  (94ep, 234s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 4.611 +/- 0.349  [+1.079 -]  (80ep, 122s)
+        GELU         MAE: 5.177 +/- 0.361  [+1.645 -]  (88ep, 135s)
+        LeakyReLU    MAE: 4.670 +/- 0.327  [+1.138 -]  (77ep, 118s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.634 +/- 0.176  [+0.102 -]  (60ep, 152s)
+        GELU         MAE: 3.600 +/- 0.133  [+0.068 -]  (75ep, 186s)
+        LeakyReLU    MAE: 3.550 +/- 0.119  [+0.018 -]  (76ep, 187s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.444 +/- 0.160  [-0.088 +]  (80ep, 201s)
+        GELU         MAE: 3.454 +/- 0.209  [-0.078 +]  (70ep, 183s)
+        LeakyReLU    MAE: 3.445 +/- 0.132  [-0.087 +]  (90ep, 224s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 11.487 +/- 0.779  [+2.234 -]  (85ep, 134s)
+        GELU         MAE: 12.593 +/- 0.951  [+3.340 -]  (105ep, 160s)
+        LeakyReLU    MAE: 11.541 +/- 0.798  [+2.288 -]  (90ep, 140s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.423 +/- 0.237  [+0.170 -]  (101ep, 251s)
+        GELU         MAE: 9.232 +/- 0.088  [-0.021 +]  (94ep, 235s)
+        LeakyReLU    MAE: 9.155 +/- 0.258  [-0.098 +]  (112ep, 275s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 9.103 +/- 0.252  [-0.150 +]  (116ep, 291s)
+        GELU         MAE: 8.937 +/- 0.301  [-0.316 +]  (126ep, 317s)
+        LeakyReLU    MAE: 9.024 +/- 0.310  [-0.229 +]  (108ep, 274s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 2.559 +/- 0.092  [+1.000 -]  (82ep, 124s)
+        GELU         MAE: 2.971 +/- 0.051  [+1.412 -]  (82ep, 124s)
+        LeakyReLU    MAE: 2.531 +/- 0.045  [+0.972 -]  (93ep, 138s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.650 +/- 0.068  [+0.091 -]  (51ep, 130s)
+        GELU         MAE: 1.674 +/- 0.065  [+0.115 -]  (65ep, 161s)
+        LeakyReLU    MAE: 1.635 +/- 0.057  [+0.076 -]  (48ep, 124s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.586 +/- 0.039  [+0.027 -]  (72ep, 182s)
+        GELU         MAE: 1.584 +/- 0.086  [+0.025 -]  (85ep, 211s)
+        LeakyReLU    MAE: 1.582 +/- 0.080  [+0.023 -]  (68ep, 174s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.802 +/- 0.035  [+0.049 +]  (41ep, 68s)
+        GELU         ROC-AUC: 0.799 +/- 0.019  [+0.046 +]  (39ep, 64s)
+        LeakyReLU    ROC-AUC: 0.805 +/- 0.026  [+0.052 +]  (40ep, 66s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.775 +/- 0.046  [+0.022 +]  (29ep, 77s)
+        GELU         ROC-AUC: 0.786 +/- 0.048  [+0.033 +]  (30ep, 79s)
+        LeakyReLU    ROC-AUC: 0.796 +/- 0.036  [+0.043 +]  (32ep, 83s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.784 +/- 0.037  [+0.031 +]  (33ep, 85s)
+        GELU         ROC-AUC: 0.774 +/- 0.026  [+0.021 +]  (30ep, 80s)
+        LeakyReLU    ROC-AUC: 0.781 +/- 0.056  [+0.028 +]  (32ep, 82s)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Means only                                   ║
+  ║  Dimensions: 945 subjects x 300 features (1 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.973 +/- 0.010  [+0.065 +]  (31ep, 2s)
+        GELU         ROC-AUC: 0.973 +/- 0.010  [+0.065 +]  (33ep, 2s)
+        LeakyReLU    ROC-AUC: 0.974 +/- 0.011  [+0.066 +]  (31ep, 2s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.972 +/- 0.013  [+0.064 +]  (29ep, 2s)
+        GELU         ROC-AUC: 0.974 +/- 0.012  [+0.066 +]  (26ep, 2s)
+        LeakyReLU    ROC-AUC: 0.971 +/- 0.012  [+0.063 +]  (28ep, 2s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.972 +/- 0.010  [+0.064 +]  (28ep, 2s)
+        GELU         ROC-AUC: 0.971 +/- 0.011  [+0.063 +]  (29ep, 2s)
+        LeakyReLU    ROC-AUC: 0.972 +/- 0.009  [+0.064 +]  (27ep, 2s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 4.028 +/- 0.233  [+0.899 -]  (76ep, 4s)
+        GELU         MAE: 4.674 +/- 0.209  [+1.545 -]  (56ep, 3s)
+        LeakyReLU    MAE: 4.106 +/- 0.199  [+0.977 -]  (71ep, 4s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.248 +/- 0.102  [+0.119 -]  (64ep, 5s)
+        GELU         MAE: 3.269 +/- 0.083  [+0.140 -]  (78ep, 5s)
+        LeakyReLU    MAE: 3.222 +/- 0.045  [+0.093 -]  (90ep, 6s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.109 +/- 0.142  [-0.020 +]  (91ep, 8s)
+        GELU         MAE: 3.130 +/- 0.083  [+0.001 -]  (82ep, 7s)
+        LeakyReLU    MAE: 3.046 +/- 0.175  [-0.083 +]  (102ep, 8s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 4.353 +/- 0.272  [+0.821 -]  (59ep, 3s)
+        GELU         MAE: 4.874 +/- 0.338  [+1.342 -]  (68ep, 4s)
+        LeakyReLU    MAE: 4.319 +/- 0.301  [+0.787 -]  (58ep, 3s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.673 +/- 0.099  [+0.141 -]  (68ep, 5s)
+        GELU         MAE: 3.605 +/- 0.163  [+0.073 -]  (67ep, 5s)
+        LeakyReLU    MAE: 3.557 +/- 0.130  [+0.025 -]  (71ep, 5s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.535 +/- 0.181  [+0.003 -]  (90ep, 7s)
+        GELU         MAE: 3.438 +/- 0.257  [-0.094 +]  (82ep, 7s)
+        LeakyReLU    MAE: 3.438 +/- 0.226  [-0.094 +]  (85ep, 7s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 11.106 +/- 0.630  [+1.853 -]  (102ep, 6s)
+        GELU         MAE: 12.048 +/- 0.609  [+2.795 -]  (89ep, 5s)
+        LeakyReLU    MAE: 11.089 +/- 0.562  [+1.836 -]  (88ep, 5s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.536 +/- 0.352  [+0.283 -]  (92ep, 6s)
+        GELU         MAE: 9.433 +/- 0.192  [+0.180 -]  (109ep, 8s)
+        LeakyReLU    MAE: 9.358 +/- 0.220  [+0.105 -]  (96ep, 7s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 8.945 +/- 0.160  [-0.308 +]  (124ep, 10s)
+        GELU         MAE: 8.896 +/- 0.338  [-0.357 +]  (113ep, 9s)
+        LeakyReLU    MAE: 8.931 +/- 0.270  [-0.322 +]  (136ep, 11s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 2.268 +/- 0.044  [+0.709 -]  (59ep, 3s)
+        GELU         MAE: 2.735 +/- 0.050  [+1.176 -]  (55ep, 3s)
+        LeakyReLU    MAE: 2.309 +/- 0.018  [+0.750 -]  (70ep, 4s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.710 +/- 0.071  [+0.151 -]  (81ep, 6s)
+        GELU         MAE: 1.720 +/- 0.112  [+0.161 -]  (71ep, 5s)
+        LeakyReLU    MAE: 1.714 +/- 0.064  [+0.155 -]  (83ep, 6s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.563 +/- 0.095  [+0.004 -]  (84ep, 7s)
+        GELU         MAE: 1.596 +/- 0.102  [+0.037 -]  (94ep, 8s)
+        LeakyReLU    MAE: 1.584 +/- 0.079  [+0.025 -]  (93ep, 8s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.801 +/- 0.031  [+0.048 +]  (28ep, 2s)
+        GELU         ROC-AUC: 0.796 +/- 0.026  [+0.043 +]  (26ep, 2s)
+        LeakyReLU    ROC-AUC: 0.800 +/- 0.025  [+0.047 +]  (27ep, 2s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.793 +/- 0.035  [+0.040 +]  (25ep, 2s)
+        GELU         ROC-AUC: 0.789 +/- 0.028  [+0.036 +]  (24ep, 2s)
+        LeakyReLU    ROC-AUC: 0.796 +/- 0.041  [+0.043 +]  (25ep, 2s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.809 +/- 0.033  [+0.056 +]  (26ep, 2s)
+        GELU         ROC-AUC: 0.793 +/- 0.034  [+0.040 +]  (25ep, 2s)
+        LeakyReLU    ROC-AUC: 0.785 +/- 0.036  [+0.032 +]  (24ep, 2s)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Cov only                                     ║
+  ║  Dimensions: 945 subjects x 44,850 features (170 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.888 +/- 0.029  [-0.020 -]  (31ep, 6s)
+        GELU         ROC-AUC: 0.885 +/- 0.036  [-0.023 -]  (33ep, 6s)
+        LeakyReLU    ROC-AUC: 0.886 +/- 0.024  [-0.022 -]  (30ep, 6s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.884 +/- 0.032  [-0.024 -]  (24ep, 8s)
+        GELU         ROC-AUC: 0.888 +/- 0.030  [-0.020 -]  (26ep, 9s)
+        LeakyReLU    ROC-AUC: 0.885 +/- 0.028  [-0.023 -]  (26ep, 9s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.887 +/- 0.024  [-0.021 -]  (25ep, 9s)
+        GELU         ROC-AUC: 0.886 +/- 0.035  [-0.022 -]  (26ep, 9s)
+        LeakyReLU    ROC-AUC: 0.883 +/- 0.029  [-0.025 -]  (26ep, 9s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 5.989 +/- 0.495  [+2.860 -]  (131ep, 22s)
+        GELU         MAE: 6.484 +/- 0.590  [+3.355 -]  (178ep, 31s)
+        LeakyReLU    MAE: 5.802 +/- 0.429  [+2.673 -]  (171ep, 29s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.538 +/- 0.111  [+0.409 -]  (97ep, 32s)
+        GELU         MAE: 3.363 +/- 0.102  [+0.234 -]  (83ep, 27s)
+        LeakyReLU    MAE: 3.471 +/- 0.088  [+0.342 -]  (94ep, 30s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.074 +/- 0.070  [-0.055 +]  (97ep, 32s)
+        GELU         MAE: 3.066 +/- 0.083  [-0.063 +]  (102ep, 34s)
+        LeakyReLU    MAE: 3.074 +/- 0.054  [-0.055 +]  (98ep, 33s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 6.070 +/- 0.330  [+2.538 -]  (158ep, 26s)
+        GELU         MAE: 6.823 +/- 0.397  [+3.291 -]  (135ep, 22s)
+        LeakyReLU    MAE: 6.022 +/- 0.353  [+2.490 -]  (159ep, 26s)
+      [Medium [512,256]]
+        ReLU         MAE: 4.129 +/- 0.090  [+0.597 -]  (109ep, 34s)
+        GELU         MAE: 4.089 +/- 0.102  [+0.557 -]  (79ep, 25s)
+        LeakyReLU    MAE: 4.054 +/- 0.116  [+0.522 -]  (123ep, 39s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.473 +/- 0.163  [-0.059 +]  (80ep, 27s)
+        GELU         MAE: 3.493 +/- 0.158  [-0.039 +]  (79ep, 26s)
+        LeakyReLU    MAE: 3.447 +/- 0.148  [-0.085 +]  (92ep, 30s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 14.557 +/- 0.662  [+5.304 -]  (200ep, 33s)
+        GELU         MAE: 16.156 +/- 0.374  [+6.903 -]  (200ep, 34s)
+        LeakyReLU    MAE: 14.719 +/- 0.670  [+5.466 -]  (190ep, 32s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.518 +/- 0.786  [+0.265 -]  (161ep, 51s)
+        GELU         MAE: 9.110 +/- 0.439  [-0.143 +]  (135ep, 43s)
+        LeakyReLU    MAE: 9.306 +/- 0.604  [+0.053 -]  (149ep, 48s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 8.556 +/- 0.486  [-0.697 +]  (116ep, 39s)
+        GELU         MAE: 8.498 +/- 0.304  [-0.755 +]  (113ep, 38s)
+        LeakyReLU    MAE: 8.614 +/- 0.364  [-0.639 +]  (117ep, 40s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 3.117 +/- 0.151  [+1.558 -]  (171ep, 27s)
+        GELU         MAE: 3.467 +/- 0.276  [+1.908 -]  (166ep, 25s)
+        LeakyReLU    MAE: 3.029 +/- 0.201  [+1.470 -]  (169ep, 27s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.827 +/- 0.120  [+0.268 -]  (73ep, 23s)
+        GELU         MAE: 1.739 +/- 0.096  [+0.180 -]  (70ep, 23s)
+        LeakyReLU    MAE: 1.840 +/- 0.090  [+0.281 -]  (82ep, 26s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.566 +/- 0.062  [+0.007 -]  (83ep, 28s)
+        GELU         MAE: 1.570 +/- 0.055  [+0.011 -]  (74ep, 25s)
+        LeakyReLU    MAE: 1.556 +/- 0.065  [-0.003 +]  (90ep, 30s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.718 +/- 0.017  [-0.035 -]  (25ep, 5s)
+        GELU         ROC-AUC: 0.719 +/- 0.025  [-0.034 -]  (27ep, 5s)
+        LeakyReLU    ROC-AUC: 0.720 +/- 0.040  [-0.033 -]  (26ep, 5s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.726 +/- 0.064  [-0.027 -]  (23ep, 8s)
+        GELU         ROC-AUC: 0.726 +/- 0.067  [-0.027 -]  (24ep, 8s)
+        LeakyReLU    ROC-AUC: 0.718 +/- 0.056  [-0.035 -]  (23ep, 8s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.736 +/- 0.062  [-0.017 -]  (26ep, 9s)
+        GELU         ROC-AUC: 0.709 +/- 0.067  [-0.044 -]  (25ep, 9s)
+        LeakyReLU    ROC-AUC: 0.718 +/- 0.052  [-0.035 -]  (24ep, 8s)
+
+  ╔════════════════════════════════════════════════════════════╗
+  ║  Feature set: Cov + means                                  ║
+  ║  Dimensions: 945 subjects x 45,150 features (171 MB)  ║
+  ╚════════════════════════════════════════════════════════════╝
+
+    --- Sex (classification, n=945)  |  Step4: 0.908 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.902 +/- 0.027  [-0.006 -]  (32ep, 6s)
+        GELU         ROC-AUC: 0.908 +/- 0.025  [-0.000 -]  (36ep, 7s)
+        LeakyReLU    ROC-AUC: 0.899 +/- 0.032  [-0.009 -]  (33ep, 6s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.904 +/- 0.025  [-0.004 -]  (26ep, 9s)
+        GELU         ROC-AUC: 0.902 +/- 0.032  [-0.006 -]  (25ep, 8s)
+        LeakyReLU    ROC-AUC: 0.906 +/- 0.023  [-0.002 -]  (26ep, 9s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.905 +/- 0.024  [-0.003 -]  (27ep, 9s)
+        GELU         ROC-AUC: 0.909 +/- 0.025  [+0.001 +]  (26ep, 9s)
+        LeakyReLU    ROC-AUC: 0.904 +/- 0.023  [-0.004 -]  (26ep, 9s)
+
+    --- Age (regression, n=945)  |  Step4: 3.129 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 5.626 +/- 0.232  [+2.497 -]  (180ep, 29s)
+        GELU         MAE: 6.346 +/- 0.470  [+3.217 -]  (185ep, 30s)
+        LeakyReLU    MAE: 5.806 +/- 0.406  [+2.677 -]  (169ep, 27s)
+      [Medium [512,256]]
+        ReLU         MAE: 3.521 +/- 0.152  [+0.392 -]  (95ep, 30s)
+        GELU         MAE: 3.366 +/- 0.134  [+0.237 -]  (84ep, 27s)
+        LeakyReLU    MAE: 3.465 +/- 0.106  [+0.336 -]  (93ep, 30s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.068 +/- 0.048  [-0.061 +]  (95ep, 31s)
+        GELU         MAE: 3.077 +/- 0.054  [-0.052 +]  (84ep, 27s)
+        LeakyReLU    MAE: 3.064 +/- 0.051  [-0.065 +]  (83ep, 27s)
+
+    --- BMI (regression, n=944)  |  Step4: 3.532 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 6.011 +/- 0.252  [+2.479 -]  (167ep, 27s)
+        GELU         MAE: 6.767 +/- 0.491  [+3.235 -]  (155ep, 25s)
+        LeakyReLU    MAE: 6.021 +/- 0.311  [+2.489 -]  (154ep, 24s)
+      [Medium [512,256]]
+        ReLU         MAE: 4.115 +/- 0.122  [+0.583 -]  (133ep, 41s)
+        GELU         MAE: 4.103 +/- 0.114  [+0.571 -]  (77ep, 25s)
+        LeakyReLU    MAE: 4.136 +/- 0.133  [+0.604 -]  (122ep, 37s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 3.448 +/- 0.139  [-0.084 +]  (77ep, 25s)
+        GELU         MAE: 3.453 +/- 0.190  [-0.079 +]  (71ep, 23s)
+        LeakyReLU    MAE: 3.405 +/- 0.162  [-0.127 +]  (97ep, 31s)
+
+    --- BPDiastolic (regression, n=934)  |  Step4: 9.253 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 15.057 +/- 0.643  [+5.804 -]  (190ep, 31s)
+        GELU         MAE: 16.273 +/- 0.776  [+7.020 -]  (199ep, 32s)
+        LeakyReLU    MAE: 14.799 +/- 0.587  [+5.546 -]  (189ep, 31s)
+      [Medium [512,256]]
+        ReLU         MAE: 9.399 +/- 0.681  [+0.146 -]  (165ep, 53s)
+        GELU         MAE: 9.218 +/- 0.408  [-0.035 +]  (110ep, 36s)
+        LeakyReLU    MAE: 9.444 +/- 0.625  [+0.191 -]  (134ep, 44s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 8.557 +/- 0.288  [-0.696 +]  (105ep, 37s)
+        GELU         MAE: 8.499 +/- 0.442  [-0.754 +]  (123ep, 41s)
+        LeakyReLU    MAE: 8.648 +/- 0.405  [-0.605 +]  (118ep, 40s)
+
+    --- Education (regression, n=943)  |  Step4: 1.559 MAE (S300) ---
+      [Shallow [256]]
+        ReLU         MAE: 2.974 +/- 0.149  [+1.415 -]  (175ep, 28s)
+        GELU         MAE: 3.611 +/- 0.359  [+2.052 -]  (152ep, 24s)
+        LeakyReLU    MAE: 3.031 +/- 0.248  [+1.472 -]  (164ep, 26s)
+      [Medium [512,256]]
+        ReLU         MAE: 1.833 +/- 0.045  [+0.274 -]  (86ep, 27s)
+        GELU         MAE: 1.793 +/- 0.080  [+0.234 -]  (73ep, 23s)
+        LeakyReLU    MAE: 1.816 +/- 0.083  [+0.257 -]  (79ep, 24s)
+      [Deep [512,256,128]]
+        ReLU         MAE: 1.555 +/- 0.059  [-0.004 +]  (89ep, 29s)
+        GELU         MAE: 1.571 +/- 0.024  [+0.012 -]  (73ep, 24s)
+        LeakyReLU    MAE: 1.543 +/- 0.051  [-0.016 +]  (98ep, 31s)
+
+    --- Race (classification, n=945)  |  Step4: 0.753 ROC-AUC (S200) ---
+      [Shallow [256]]
+        ReLU         ROC-AUC: 0.735 +/- 0.037  [-0.018 -]  (27ep, 5s)
+        GELU         ROC-AUC: 0.727 +/- 0.031  [-0.026 -]  (26ep, 5s)
+        LeakyReLU    ROC-AUC: 0.740 +/- 0.035  [-0.013 -]  (26ep, 5s)
+      [Medium [512,256]]
+        ReLU         ROC-AUC: 0.723 +/- 0.073  [-0.030 -]  (23ep, 8s)
+        GELU         ROC-AUC: 0.773 +/- 0.048  [+0.020 +]  (25ep, 8s)
+        LeakyReLU    ROC-AUC: 0.756 +/- 0.034  [+0.003 +]  (24ep, 8s)
+      [Deep [512,256,128]]
+        ReLU         ROC-AUC: 0.715 +/- 0.084  [-0.038 -]  (24ep, 8s)
+        GELU         ROC-AUC: 0.755 +/- 0.063  [+0.002 +]  (26ep, 9s)
+        LeakyReLU    ROC-AUC: 0.715 +/- 0.062  [-0.038 -]  (24ep, 8s)
+
+==========================================================================================
+  RESULTS SUMMARY — MLP vs Step4 Linear Baselines
+  Total training time: 298.6 min
+==========================================================================================
+
+  Sex (ROC-AUC)  |  Step4 best: 0.908 (S200)
+  #    Atlas  Features           Architecture           Activation   Score              vs Step4
+  -----------------------------------------------------------------------------------------------
+  >>>1 S300   Raw time series    Medium [512,256]       GELU         0.974 +/- 0.009    +0.066 +
+     2 S300   Means only         Shallow [256]          LeakyReLU    0.974 +/- 0.011    +0.066 +
+     3 S300   Means only         Medium [512,256]       GELU         0.974 +/- 0.012    +0.066 +
+     4 S300   Raw time series    Shallow [256]          LeakyReLU    0.973 +/- 0.012    +0.065 +
+     5 S300   Means only         Shallow [256]          GELU         0.973 +/- 0.010    +0.065 +
+     6 S300   Means only         Shallow [256]          ReLU         0.973 +/- 0.010    +0.065 +
+     7 S300   Means only         Deep [512,256,128]     LeakyReLU    0.972 +/- 0.009    +0.064 +
+     8 S300   Means only         Deep [512,256,128]     ReLU         0.972 +/- 0.010    +0.064 +
+     9 S300   Means only         Medium [512,256]       ReLU         0.972 +/- 0.013    +0.064 +
+     10 S300   Means only         Medium [512,256]       LeakyReLU    0.971 +/- 0.012    +0.063 +
+     11 S300   Raw time series    Medium [512,256]       LeakyReLU    0.971 +/- 0.012    +0.063 +
+     12 S300   Means only         Deep [512,256,128]     GELU         0.971 +/- 0.011    +0.063 +
+     13 S300   Raw time series    Shallow [256]          GELU         0.971 +/- 0.013    +0.063 +
+     14 S300   Raw time series    Shallow [256]          ReLU         0.971 +/- 0.013    +0.063 +
+     15 S300   Raw time series    Medium [512,256]       ReLU         0.971 +/- 0.010    +0.063 +
+  ... (57 more rows)
+
+  Age (MAE)  |  Step4 best: 3.129 (S300)
+  #    Atlas  Features           Architecture           Activation   Score              vs Step4
+  -----------------------------------------------------------------------------------------------
+  >>>1 S300   Raw time series    Deep [512,256,128]     ReLU         3.019 +/- 0.078    -0.110 +
+     2 S300   Means only         Deep [512,256,128]     LeakyReLU    3.046 +/- 0.175    -0.083 +
+     3 S300   Raw time series    Deep [512,256,128]     LeakyReLU    3.056 +/- 0.127    -0.073 +
+     4 S300   Cov + means        Deep [512,256,128]     LeakyReLU    3.064 +/- 0.051    -0.065 +
+     5 S300   Cov only           Deep [512,256,128]     GELU         3.066 +/- 0.083    -0.063 +
+     6 S300   Cov + means        Deep [512,256,128]     ReLU         3.068 +/- 0.048    -0.061 +
+     7 S300   Cov only           Deep [512,256,128]     LeakyReLU    3.074 +/- 0.054    -0.055 +
+     8 S300   Cov only           Deep [512,256,128]     ReLU         3.074 +/- 0.070    -0.055 +
+     9 S300   Cov + means        Deep [512,256,128]     GELU         3.077 +/- 0.054    -0.052 +
+     10 S300   Raw time series    Deep [512,256,128]     GELU         3.101 +/- 0.111    -0.028 +
+     11 S200   Raw time series    Deep [512,256,128]     LeakyReLU    3.108 +/- 0.125    -0.021 +
+     12 S300   Means only         Deep [512,256,128]     ReLU         3.109 +/- 0.142    -0.020 +
+     13 S200   Cov + means        Deep [512,256,128]     LeakyReLU    3.121 +/- 0.087    -0.008 +
+     14 S300   Means only         Deep [512,256,128]     GELU         3.130 +/- 0.083    +0.001 -
+     15 S200   Cov + means        Deep [512,256,128]     GELU         3.143 +/- 0.068    +0.014 -
+  ... (57 more rows)
+
+  BMI (MAE)  |  Step4 best: 3.532 (S300)
+  #    Atlas  Features           Architecture           Activation   Score              vs Step4
+  -----------------------------------------------------------------------------------------------
+  >>>1 S300   Cov + means        Deep [512,256,128]     LeakyReLU    3.405 +/- 0.162    -0.127 +
+     2 S300   Means only         Deep [512,256,128]     LeakyReLU    3.438 +/- 0.226    -0.094 +
+     3 S300   Means only         Deep [512,256,128]     GELU         3.438 +/- 0.257    -0.094 +
+     4 S300   Raw time series    Deep [512,256,128]     ReLU         3.444 +/- 0.160    -0.088 +
+     5 S300   Raw time series    Deep [512,256,128]     LeakyReLU    3.445 +/- 0.132    -0.087 +
+     6 S300   Cov only           Deep [512,256,128]     LeakyReLU    3.447 +/- 0.148    -0.085 +
+     7 S300   Cov + means        Deep [512,256,128]     ReLU         3.448 +/- 0.139    -0.084 +
+     8 S200   Cov + means        Deep [512,256,128]     ReLU         3.449 +/- 0.117    -0.083 +
+     9 S300   Cov + means        Deep [512,256,128]     GELU         3.453 +/- 0.190    -0.079 +
+     10 S300   Raw time series    Deep [512,256,128]     GELU         3.454 +/- 0.209    -0.078 +
+     11 S300   Cov only           Deep [512,256,128]     ReLU         3.473 +/- 0.163    -0.059 +
+     12 S300   Cov only           Deep [512,256,128]     GELU         3.493 +/- 0.158    -0.039 +
+     13 S200   Cov only           Deep [512,256,128]     ReLU         3.505 +/- 0.106    -0.027 +
+     14 S200   Raw time series    Deep [512,256,128]     ReLU         3.516 +/- 0.150    -0.016 +
+     15 S200   Means only         Deep [512,256,128]     ReLU         3.518 +/- 0.135    -0.014 +
+  ... (57 more rows)
+
+  BPDiastolic (MAE)  |  Step4 best: 9.253 (S300)
+  #    Atlas  Features           Architecture           Activation   Score              vs Step4
+  -----------------------------------------------------------------------------------------------
+  >>>1 S300   Cov only           Deep [512,256,128]     GELU         8.498 +/- 0.304    -0.755 +
+     2 S300   Cov + means        Deep [512,256,128]     GELU         8.499 +/- 0.442    -0.754 +
+     3 S300   Cov only           Deep [512,256,128]     ReLU         8.556 +/- 0.486    -0.697 +
+     4 S300   Cov + means        Deep [512,256,128]     ReLU         8.557 +/- 0.288    -0.696 +
+     5 S300   Cov only           Deep [512,256,128]     LeakyReLU    8.614 +/- 0.364    -0.639 +
+     6 S200   Cov + means        Deep [512,256,128]     GELU         8.643 +/- 0.256    -0.610 +
+     7 S300   Cov + means        Deep [512,256,128]     LeakyReLU    8.648 +/- 0.405    -0.605 +
+     8 S200   Cov only           Deep [512,256,128]     GELU         8.870 +/- 0.428    -0.383 +
+     9 S200   Cov only           Deep [512,256,128]     LeakyReLU    8.881 +/- 0.377    -0.372 +
+     10 S300   Means only         Deep [512,256,128]     GELU         8.896 +/- 0.338    -0.357 +
+     11 S300   Means only         Deep [512,256,128]     LeakyReLU    8.931 +/- 0.270    -0.322 +
+     12 S300   Raw time series    Deep [512,256,128]     GELU         8.937 +/- 0.301    -0.316 +
+     13 S300   Means only         Deep [512,256,128]     ReLU         8.945 +/- 0.160    -0.308 +
+     14 S300   Raw time series    Deep [512,256,128]     LeakyReLU    9.024 +/- 0.310    -0.229 +
+     15 S200   Cov only           Deep [512,256,128]     ReLU         9.033 +/- 0.616    -0.220 +
+  ... (57 more rows)
+
+  Education (MAE)  |  Step4 best: 1.559 (S300)
+  #    Atlas  Features           Architecture           Activation   Score              vs Step4
+  -----------------------------------------------------------------------------------------------
+  >>>1 S300   Cov + means        Deep [512,256,128]     LeakyReLU    1.543 +/- 0.051    -0.016 +
+     2 S300   Cov + means        Deep [512,256,128]     ReLU         1.555 +/- 0.059    -0.004 +
+     3 S300   Cov only           Deep [512,256,128]     LeakyReLU    1.556 +/- 0.065    -0.003 +
+     4 S200   Cov only           Deep [512,256,128]     GELU         1.562 +/- 0.044    +0.003 -
+     5 S300   Means only         Deep [512,256,128]     ReLU         1.563 +/- 0.095    +0.004 -
+     6 S300   Cov only           Deep [512,256,128]     ReLU         1.566 +/- 0.062    +0.007 -
+     7 S200   Cov + means        Deep [512,256,128]     GELU         1.568 +/- 0.029    +0.009 -
+     8 S300   Cov only           Deep [512,256,128]     GELU         1.570 +/- 0.055    +0.011 -
+     9 S200   Cov + means        Deep [512,256,128]     LeakyReLU    1.570 +/- 0.056    +0.011 -
+     10 S300   Cov + means        Deep [512,256,128]     GELU         1.571 +/- 0.024    +0.012 -
+     11 S200   Means only         Deep [512,256,128]     ReLU         1.573 +/- 0.088    +0.014 -
+     12 S200   Cov + means        Deep [512,256,128]     ReLU         1.576 +/- 0.050    +0.017 -
+     13 S200   Means only         Deep [512,256,128]     LeakyReLU    1.577 +/- 0.064    +0.018 -
+     14 S200   Cov only           Deep [512,256,128]     LeakyReLU    1.582 +/- 0.043    +0.023 -
+     15 S300   Raw time series    Deep [512,256,128]     LeakyReLU    1.582 +/- 0.080    +0.023 -
+  ... (57 more rows)
+
+  Race (ROC-AUC)  |  Step4 best: 0.753 (S200)
+  #    Atlas  Features           Architecture           Activation   Score              vs Step4
+  -----------------------------------------------------------------------------------------------
+  >>>1 S300   Means only         Deep [512,256,128]     ReLU         0.809 +/- 0.033    +0.056 +
+     2 S300   Raw time series    Shallow [256]          LeakyReLU    0.805 +/- 0.026    +0.052 +
+     3 S300   Raw time series    Shallow [256]          ReLU         0.802 +/- 0.035    +0.049 +
+     4 S300   Means only         Shallow [256]          ReLU         0.801 +/- 0.031    +0.048 +
+     5 S200   Raw time series    Shallow [256]          LeakyReLU    0.801 +/- 0.015    +0.048 +
+     6 S200   Raw time series    Shallow [256]          ReLU         0.801 +/- 0.015    +0.048 +
+     7 S300   Means only         Shallow [256]          LeakyReLU    0.800 +/- 0.025    +0.047 +
+     8 S300   Raw time series    Shallow [256]          GELU         0.799 +/- 0.019    +0.046 +
+     9 S200   Means only         Shallow [256]          ReLU         0.798 +/- 0.018    +0.045 +
+     10 S300   Raw time series    Medium [512,256]       LeakyReLU    0.796 +/- 0.036    +0.043 +
+     11 S300   Means only         Medium [512,256]       LeakyReLU    0.796 +/- 0.041    +0.043 +
+     12 S300   Means only         Shallow [256]          GELU         0.796 +/- 0.026    +0.043 +
+     13 S300   Means only         Medium [512,256]       ReLU         0.793 +/- 0.035    +0.040 +
+     14 S300   Means only         Deep [512,256,128]     GELU         0.793 +/- 0.034    +0.040 +
+     15 S200   Raw time series    Shallow [256]          GELU         0.791 +/- 0.027    +0.038 +
+  ... (57 more rows)
+
+==========================================================================================
+  BEST SCORE PER FEATURE CONDITION (across arch/activation/atlas)
+==========================================================================================
+  Label          Condition          Score              Config                              vs Step4
+  ------------------------------------------------------------------------------------------
+  Sex            Raw time series    0.974 +/- 0.009   S300 Medium [512,256] GELU          +0.066 +
+  Sex            Means only         0.974 +/- 0.011   S300 Shallow [256] LeakyReLU        +0.066 +
+  Sex            Cov only           0.888 +/- 0.029   S300 Shallow [256] ReLU             -0.020 -
+  Sex            Cov + means        0.909 +/- 0.025   S300 Deep [512,256,128] GELU        +0.001 +
+  Age            Raw time series    3.019 +/- 0.078   S300 Deep [512,256,128] ReLU        -0.110 +
+  Age            Means only         3.046 +/- 0.175   S300 Deep [512,256,128] LeakyReLU   -0.083 +
+  Age            Cov only           3.066 +/- 0.083   S300 Deep [512,256,128] GELU        -0.063 +
+  Age            Cov + means        3.064 +/- 0.051   S300 Deep [512,256,128] LeakyReLU   -0.065 +
+  BMI            Raw time series    3.444 +/- 0.160   S300 Deep [512,256,128] ReLU        -0.088 +
+  BMI            Means only         3.438 +/- 0.226   S300 Deep [512,256,128] LeakyReLU   -0.094 +
+  BMI            Cov only           3.447 +/- 0.148   S300 Deep [512,256,128] LeakyReLU   -0.085 +
+  BMI            Cov + means        3.405 +/- 0.162   S300 Deep [512,256,128] LeakyReLU   -0.127 +
+  BPDiastolic    Raw time series    8.937 +/- 0.301   S300 Deep [512,256,128] GELU        -0.316 +
+  BPDiastolic    Means only         8.896 +/- 0.338   S300 Deep [512,256,128] GELU        -0.357 +
+  BPDiastolic    Cov only           8.498 +/- 0.304   S300 Deep [512,256,128] GELU        -0.755 +
+  BPDiastolic    Cov + means        8.499 +/- 0.442   S300 Deep [512,256,128] GELU        -0.754 +
+  Education      Raw time series    1.582 +/- 0.080   S300 Deep [512,256,128] LeakyReLU   +0.023 -
+  Education      Means only         1.563 +/- 0.095   S300 Deep [512,256,128] ReLU        +0.004 -
+  Education      Cov only           1.556 +/- 0.065   S300 Deep [512,256,128] LeakyReLU   -0.003 +
+  Education      Cov + means        1.543 +/- 0.051   S300 Deep [512,256,128] LeakyReLU   -0.016 +
+  Race           Raw time series    0.805 +/- 0.026   S300 Shallow [256] LeakyReLU        +0.052 +
+  Race           Means only         0.809 +/- 0.033   S300 Deep [512,256,128] ReLU        +0.056 +
+  Race           Cov only           0.736 +/- 0.062   S300 Deep [512,256,128] ReLU        -0.017 -
+  Race           Cov + means        0.773 +/- 0.048   S300 Medium [512,256] GELU          +0.020 +
+
+  Results saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_results.json
+
+  Generating heatmaps...
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_sex.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_age.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_bmi.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_bpdiastolic.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_education.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_race.png
+
+  Generating true vs predicted plots (best config per label)...
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_pred_sex.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_pred_age.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_pred_bmi.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_pred_bpdiastolic.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_pred_education.png
+    Saved: /sci/labs/arieljaffe/dan.abergel1/HCP_data/mlp_pred_race.png
+
+  Done. Total time: 298.6 min
+
+============================================================
+  Job finished: Wed Mar 11 02:43:47 IST 2026
+============================================================

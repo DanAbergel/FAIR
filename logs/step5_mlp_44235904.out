@@ -1,0 +1,15 @@
+============================================================
+  Step 5: MLP Deep Learning Baseline — SLURM Job
+============================================================
+  Job ID:     44235904
+  Node:       salmon-10
+  Date:       Tue Mar 10 21:43:10 IST 2026
+  Project:    /sci/labs/arieljaffe/dan.abergel1/FAIR
+  Venv:       /sci/labs/arieljaffe/dan.abergel1/torch_env
+============================================================
+
+[1/4] Activating venv ...
+  Python: /sci/labs/arieljaffe/dan.abergel1/torch_env/bin/python3
+  Version: Python 3.11.2
+
+[2/4] Updating code ...

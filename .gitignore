@@ -9,8 +9,8 @@ __pycache__/
 .env
 
 # SLURM logs
-logs/*.out
-logs/*.err
+#logs/*.out
+#logs/*.err
 
 # notebooks
 .ipynb_checkpoints/
